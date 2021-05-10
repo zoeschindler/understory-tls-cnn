@@ -14,8 +14,6 @@ path_points   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/_Testwolke/OT8cm_
 path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"
 path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_2D.kml"
 
-
-
 # load data
 cloud_raw <- readTLSLAS(path_points) # TODO: passt eine Wolke komplett in RAM?
 cloud_norm <- cloud_raw # TODO kommt weg später maaal
@@ -87,7 +85,7 @@ check_create_dir <- function(path) {
 
 ################################################################################
 
-# even faster eigenvalue calculation
+# fast eigenvalue calculation
 # source: https://gis.stackexchange.com/questions/395916/get-eigenvalues-of-large-point-cloud-using-lidr
 Rcpp::sourceCpp("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/eigen_decomposition.cpp")
 
@@ -390,6 +388,8 @@ raster_create_all <- function(point_cloud, resolution, raster_dir, output_name) 
 # beim Bilder Laden beim Modell die Bilder stacken?
 # stack(stack1, stack2)
 
+################################################################################
+
 # # testing raster_create_all
 # raster_create_all(cloud_norm, 0.01, path_rasters, "Breisach")
 
@@ -397,21 +397,16 @@ raster_create_all <- function(point_cloud, resolution, raster_dir, output_name) 
 # create raster tiles
 ################################################################################
 
-path_raster <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/raster.tif"
-path_points <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/points.kml"
-
 raster_clip_all <- function(raster_dir, plot_path, tile_size, output_dir) {
   # clips all rasters to small areas around the vegetation plots
+  # creates folder structures similar to the input rasters
   check_create_dir(output_dir)
   print("... clipping all rasters")
   # read as kml + transform CRS
-  plots <- sf::st_read(plot_path)
-  plots <- sf::st_transform(plots, 25832)
-  # TODO: add ID?
-  
+  plots <- sf::st_transform(sf::st_read(plot_path), 25832)
   # get all rasters within raster_dir
   raster_list <- list.files(raster_dir, pattern=".tif", recursive=TRUE)
-  # calculate edge length
+  # calculate edge length (divisible by two)
   edge <- ((tile_size*100)%/%2)/100
   # loop through rasters
   for (raster_path in raster_list) {
@@ -419,34 +414,45 @@ raster_clip_all <- function(raster_dir, plot_path, tile_size, output_dir) {
     raster <- raster(paste0(raster_dir,"/",raster_path))
     crs(raster) <- CRS("+init=EPSG:25832")
     # get points within raster extent
-    # https://gis.stackexchange.com/questions/230900/crop-simple-features-object-in-r
     subset <- st_intersection(plots, st_set_crs(st_as_sf(as(extent(raster), "SpatialPolygons")), st_crs(plots)))
+    # get raster dir & type & name
+    subfolder <- strsplit(raster_path, "/")[[1]][1]
+    name <- strsplit(strsplit(raster_path, "/")[[1]][2], "[.]")[[1]][1]
     # loop through plots
     for (idx in 1:nrow(subset)) {
-     plot <- subset[idx,]
-      # set clipping extent beginning from plot center
+      plot <- subset[idx,]
+      # clip raster with point + edge
       center_x <- round(sf::st_coordinates(plot)[,1], 2) # round on cm
       center_y <- round(sf::st_coordinates(plot)[,2], 2) # round on cm
-      rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge,
-                            ymin=center_y-edge, ymax=center_y+edge))
-      # clip raster
+      rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge, ymin=center_y-edge, ymax=center_y+edge))
       clip <- crop(raster, rectangle)
-      # save clip
-      writeRaster(clip, paste0(), overwrite=TRUE) # TODO: Bennenung???
+      # get plot plot_ID & veg_ID
+      plot_id <- strsplit(strsplit(plot$Description, ",")[[1]][1], " ")[[1]][2]
+      veg_id <- strsplit(strsplit(plot$Description, ",")[[1]][2], " ")[[1]][3]
+      # check if raster is empty, only continue if not
+      if (!all(is.na(as.vector(clip)))) {
+        # save clip
+        check_create_dir(paste0(output_dir, "/", subfolder))
+        writeRaster(clip, paste0(output_dir, "/", subfolder, "/", name,
+                                 "_", plot_id, "_", veg_id, ".tif"), overwrite=TRUE)
+      } else {
+        print("empty raster")
+        print(paste0("plot_id: ", plot_id, " | veg_id: ", veg_id))
+        print("---")
+      }
     }
   }
 }
 
+tile_size <- 0.5
+output_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"
+raster_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy"
+plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/points_new.kml"
+
+raster_clip_all(raster_dir, plot_path, tile_size, output_dir)
+
 # TODO: exclude all tiles where the height of the 99% percentile is above 2m height
 
-library(lidR)
-plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_2D.kml"
-raster_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"
-resolution <- 0.01
-tile_size <- 0.5
-output_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters/clips"
-
-# Datei anlegen, die die Koordinaten der unteren linken Ecke aller Kacheln speichert?
 
 ################################################################################
 # check for correlations
@@ -512,5 +518,3 @@ for (i in raster_list) {rasters[i] = raster(paste0(path_rasters, "/", i))}
     clust_3[["sim"]]
     clust_3[["sim"]]>(0.7^2)
     cor(bird[,-c(1:3, 5:7, 9, 10:11, 14)], method="spearman")
-
-    
