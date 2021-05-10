@@ -87,11 +87,7 @@ rm(part1, part2)
   final$veg_type[final$veg_type=="Gras"] <- "gras"
   final$veg_type[final$veg_type=="Boden"] <- "forest_floor"
   final$veg_type[final$veg_type=="Boden?"] <- "forest_floor"
-  # points below small spruces:
-  # final <- final[substr(final$veg_type, nchar(final$veg_type)-20, nchar(final$veg_type)) != "unter kleinen Fichten",]
-  # TODO: check bei plotIDrandom zwischen 30 und 80 -> viele Totholz werte, die weg müssen -->
-  #       nDSM? wo 99%-quantil über 2m -> Punkte raus schneiden?
-  # show clean data
+  # check remaining types
   summary(as.factor(final$veg_type))
 }
 
@@ -153,13 +149,3 @@ st_write(final_sp_trans_xy, paste0(file_name, "_2D.kml"), delete_layer = T)
 final_sp_trans_xyz <- sf::st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude', 'veg_loc:Altitude'), crs = 4326)
 #final_sp_trans_xyz <- sf::st_transform(final_sp_trans_xyz, 25832) # wird eh als WGS84 gespeichert
 st_write(final_sp_trans_xyz, paste0(file_name, "_3D.kml"), delete_layer = T)
-
-################################################################################
-# ADD PLOT NUMBER
-################################################################################
-
-# TODO: wait for good plot borders from TLS
-
-# load plots
-
-# assign plot name to points within
