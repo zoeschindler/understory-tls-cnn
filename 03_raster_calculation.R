@@ -24,7 +24,7 @@ rm(cloud_raw) # TODO kommt weg später maaal
 # TODO: RGB hat mehrere Bänder pro Raster --> doof?
 
 ################################################################################
-# delete invalid / unrealistic points
+# POINT CLOUD QUALITY CHECKS
 ################################################################################
 
 # what are common quality checks for TLS data?
@@ -32,7 +32,7 @@ rm(cloud_raw) # TODO kommt weg später maaal
 # save changed data
 
 ################################################################################
-# filter understory points
+# FILTER UNDERSTORY POINTS
 ################################################################################
 
 # set parameters
@@ -40,12 +40,12 @@ resolution_dtm = 0.1
 
 # normalize height
 cloud_raw <- classify_ground(cloud_raw, csf(class_threshold = 0.1, cloth_resolution = 1)) # is later used for creating nDSM
-
 dtm <- grid_terrain(filter_ground(cloud_raw), tin(), res = resolution_dtm)
 cloud_norm <- normalize_height(cloud_raw, dtm, na.rm = T)
 #plot(cloud_norm, axis = T)
 
 # Punkte mit negativem z-Wert raus kicken
+cloud_norm <- filter_poi(cloud_norm, Z > 0)
 cloud_norm <- filter_poi(cloud_norm, Z <= 2)
 
 # delete trees from data when bigger than 2 meters
@@ -54,7 +54,6 @@ cloud_norm <- filter_poi(cloud_norm, Z <= 2)
 # https://rdrr.io/cran/lidR/man/add_attribute.html
 # https://gis.stackexchange.com/questions/376772/removing-tree-stems-from-a-point-cloud-in-r
 # https://jean-romain.github.io/lidRbook/itd-its.html
-
 
 # delete points above 2m height
 cloud_under <- filter_poi(cloud_norm, Z <= 2)
@@ -69,7 +68,7 @@ writeLAS(cloud_under, paste0(substr(path_points, 1, nchar(path_points)-4),
                              "_understory.las"))
 
 ################################################################################
-# helper functions
+# HELPER FUNCTIONS
 ################################################################################
 
 check_create_dir <- function(path) {
@@ -185,7 +184,7 @@ rescale_raster <- function(raster) {
 }
 
 ################################################################################
-# create single rasters
+# SINGLE RASTER FUNCTIONS
 ################################################################################
 
 raster_nDSM <- function(point_cloud, resolution, output_dir, output_name, rescale=TRUE) {
@@ -262,7 +261,6 @@ raster_ortho <- function(point_cloud, resolution, output_dir, output_name, resca
 raster_geometry <- function(point_cloud, resolution, output_dir, output_name, rescale=TRUE) {
   # takes in point cloud (normalized or unnormalized)
   # saves several geometry rasters in output folder
-  # https://gis.stackexchange.com/questions/396186/calculating-grid-metrics-in-a-loop-using-column-name-within-variable/396191#396191
   check_create_dir(output_dir)
   print("... creating geometry rasters")
   # get attributes
@@ -322,7 +320,7 @@ raster_reflectance <- function(point_cloud, resolution, output_dir, output_name,
     if (rescale) {
       raster_band <- rescale_raster(raster_band)
     }
-    # save rasters
+    # save raster
     writeRaster(raster_band, paste0(output_dir, "/reflectance_", type, "_",
                                     output_name, "_", resolution*100, "cm.tif"), overwrite = TRUE)
   }
@@ -369,7 +367,7 @@ raster_point_density <- function(point_cloud, resolution, output_dir, output_nam
 # plot(raster("H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters/density/density_test_10cm.tif"))
 
 ################################################################################
-# create all rasters
+# CREATE ALL RASTERS
 ################################################################################
 
 raster_create_all <- function(point_cloud, resolution, raster_dir, output_name) {
@@ -378,6 +376,7 @@ raster_create_all <- function(point_cloud, resolution, raster_dir, output_name) 
   raster_geometry(point_cloud, resolution, paste0(raster_dir, "/geometry"), output_name)
   raster_reflectance(point_cloud, resolution, paste0(raster_dir, "/reflectance"), output_name)
   raster_point_density(point_cloud, resolution, paste0(raster_dir, "/density"), output_name)
+  raster_nDSM(point_cloud, resolution, paste0(raster_dir, "/nDSM_unscaled"), output_name, rescale=FALSE)
   print("done!")
 }
 
@@ -394,7 +393,57 @@ raster_create_all <- function(point_cloud, resolution, raster_dir, output_name) 
 # raster_create_all(cloud_norm, 0.01, path_rasters, "Breisach")
 
 ################################################################################
-# create raster tiles
+# FILTER MIDSTORY PLOTS
+################################################################################
+
+filter_midstory <- function(nDSM_unscaled_dir, plot_path, tile_size) {
+  # check if nDSM values are above 2m
+  print("... removing midstory points")
+  # empty list for storing "bad" points
+  midstory_plots <- c()
+  # read as kml + transform CRS
+  plots <- sf::st_transform(sf::st_read(plot_path), 25832)
+  # get all rasters within nDSM_dir
+  nDSM_list <- list.files(nDSM_unscaled_dir, pattern=".tif", recursive=TRUE)
+  # calculate edge length (divisible by two)
+  edge <- ((tile_size*100)%/%2)/100
+  # loop through nDSMs
+  for (nDSM_path in nDSM_list) {
+    # load raster
+    nDSM <- raster(paste0(nDSM_unscaled_dir,"/",nDSM_path))
+    crs(nDSM) <- CRS("+init=EPSG:25832")
+    # get points within raster extent
+    subset <- st_intersection(plots, st_set_crs(st_as_sf(as(extent(nDSM), "SpatialPolygons")), st_crs(plots)))
+    # loop through plots
+    for (idx in 1:nrow(subset)) {
+      plot <- subset[idx,]
+      # clip raster with point + edge
+      center_x <- round(sf::st_coordinates(plot)[,1], 2) # round on cm
+      center_y <- round(sf::st_coordinates(plot)[,2], 2) # round on cm
+      rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge, ymin=center_y-edge, ymax=center_y+edge))
+      clip <- crop(nDSM, rectangle)
+      # check height
+      if ((quantile(as.vector(clip), 0.95, na.rm=T) >= 2) &  !all(is.na(as.vector(clip)))) {
+        midstory_plots <- append(midstory_plots, plot$Description)
+      }
+    }
+  }
+  # delete midstory points
+  filtered_plots <- plots[!plots$Description %in% midstory_plots,]
+  # save filtered points
+  st_write(filtered_plots, paste0(substr(plot_path, 1, nchar(plot_path)-4), "_filtered.kml"), delete_layer = T)
+}
+
+################################################################################
+
+# # testing filter_midstory
+# tile_size <- 0.5
+# nDSM_unscaled_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/nDSM_unscaled"
+# plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/points_new.kml"
+# filter_midstory(nDSM_unscaled_dir, plot_path, tile_size)
+
+################################################################################
+# RASTER TILES
 ################################################################################
 
 raster_clip_all <- function(raster_dir, plot_path, tile_size, output_dir) {
@@ -444,18 +493,17 @@ raster_clip_all <- function(raster_dir, plot_path, tile_size, output_dir) {
   }
 }
 
-tile_size <- 0.5
-output_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"
-raster_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy"
-plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/points_new.kml"
+################################################################################
 
-raster_clip_all(raster_dir, plot_path, tile_size, output_dir)
-
-# TODO: exclude all tiles where the height of the 99% percentile is above 2m height
-
+# # testing raster_clip_all
+# tile_size <- 0.5
+# output_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"
+# raster_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy"
+# plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/points_new.kml"
+# raster_clip_all(raster_dir, plot_path, tile_size, output_dir)
 
 ################################################################################
-# check for correlations
+# COLINEARITY CHECKS
 ################################################################################
 
 # hierfür sind fertige, normalisierte Raster notwendig, die in dataframe umgewandlet werden
@@ -468,7 +516,7 @@ for (i in raster_list) {rasters[i] = raster(paste0(path_rasters, "/", i))}
 # Raster: Raster mit rbind drunter hauen, wenn mehrere da
 # 
 
-# PROBLEM:mehrere Bänder pro Bild manchmal! (rgb, reflectance)
+# PROBLEM: mehrere Bänder pro Bild manchmal! (rgb, reflectance)
 
 # PCA biplot:
 # - gleiche Richtung = positiv korreliert
