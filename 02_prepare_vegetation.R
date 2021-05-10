@@ -45,17 +45,29 @@ json_to_df <- function (path) {
   final$veg_type[final$veg_type == 'other'] <- final$veg_other_text[final$veg_type == 'other']
   # delete unnecessary column
   final$veg_other_text <- NULL
-  # give plot name, random
-  final$plotIDrandom <- final %>%
+  # set plot_ID
+  final$plot_ID <- final %>%
     group_indices(`plot_loc:Longitude`, `plot_loc:Latitude`)
   # return data
   return(final)
 }
 
+add_IDs <- function(df) {
+  # set plot_ID
+  df$plot_ID <- df %>%
+    group_indices(`plot_loc:Longitude`, `plot_loc:Latitude`)
+  # set vegetation_ID
+  df <- df %>%
+    arrange(plot_ID) %>%
+    mutate(veg_ID = 1:nrow(df))
+  return(df)
+}
+
 # execute function
 part1 <- json_to_df('Ground_Vegetation_Survey_0_1_results.json')
 part2 <- json_to_df('Ground_Vegetation_Survey_0_2_results.json')
-final <- rbind(part1, part2)
+#final <- rbind(part1, part2)
+final <- add_IDs(rbind(part1, part2))
 rm(part1, part2)
 
 ################################################################################
@@ -115,14 +127,14 @@ for (i in 1:nrow(final)) {
 
 # prepare
 final_sp <- final
-final_sp$name <- final_sp$veg_type
-final_sp$Description <- paste0('<img src="files/',final_sp$filename,'"/>')
+final_sp$name <- final_sp$veg_type # for the kmls
+final_sp$description <- paste0("plot_ID: ", final_sp$plot_ID, ", veg_ID: ", final_sp$veg_ID) # for the kmls
 
 # csv
 final_sp_trans_csv <- sf::st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude', 'veg_loc:Altitude'), crs = 4326)
 final_sp_trans_csv <- sf::st_transform(final_sp_trans_csv, 25832)
-final_sp_trans_csv <- cbind(as.data.frame(st_coordinates(final_sp_trans_csv)),
-                            as.data.frame(final_sp_trans_csv))[1:ncol(final_sp_trans_csv)-1]
+final_sp_trans_csv <- cbind(as.data.frame(st_coordinates(final_sp_trans_csv)), as.data.frame(final_sp_trans_csv))
+final_sp_trans_csv <- final_sp_trans_csv[1:ncol(final_sp_trans_csv)-2] # remove gemeotry column & name
 st_write(final_sp_trans_csv, paste0(file_name, ".csv"), delete_layer = T)
 
 # # 2D shp
@@ -152,6 +164,3 @@ st_write(final_sp_trans_xyz, paste0(file_name, "_3D.kml"), delete_layer = T)
 # load plots
 
 # assign plot name to points within
-
-# delete points outside plots
-
