@@ -66,7 +66,6 @@ add_IDs <- function(df) {
 # execute function
 part1 <- json_to_df('Ground_Vegetation_Survey_0_1_results.json')
 part2 <- json_to_df('Ground_Vegetation_Survey_0_2_results.json')
-#final <- rbind(part1, part2)
 final <- add_IDs(rbind(part1, part2))
 rm(part1, part2)
 
