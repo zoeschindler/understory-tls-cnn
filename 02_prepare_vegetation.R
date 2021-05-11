@@ -6,8 +6,8 @@
 
 ## parse geojson
 require(jsonlite)
-require(sf)
 require(dplyr)
+require(sf)
 
 # set path
 home_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation"
@@ -126,26 +126,26 @@ final_sp$name <- final_sp$veg_type # for the kmls
 final_sp$description <- paste0("plot_ID: ", final_sp$plot_ID, ", veg_ID: ", final_sp$veg_ID) # for the kmls
 
 # csv
-final_sp_trans_csv <- sf::st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude', 'veg_loc:Altitude'), crs = 4326)
-final_sp_trans_csv <- sf::st_transform(final_sp_trans_csv, 25832)
+final_sp_trans_csv <- st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude', 'veg_loc:Altitude'), crs = 4326)
+final_sp_trans_csv <- st_transform(final_sp_trans_csv, 25832)
 final_sp_trans_csv <- cbind(as.data.frame(st_coordinates(final_sp_trans_csv)), as.data.frame(final_sp_trans_csv))
 final_sp_trans_csv <- final_sp_trans_csv[1:ncol(final_sp_trans_csv)-2] # remove gemeotry column & name
 st_write(final_sp_trans_csv, paste0(file_name, ".csv"), delete_layer = T)
 
 # # 2D shp
-# final_sp_trans_xy <- sf::st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude'), crs = 4326)
-# final_sp_trans_xy <- sf::st_transform(final_sp_trans_xy, 25832)
+# final_sp_trans_xy <- st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude'), crs = 4326)
+# final_sp_trans_xy <- st_transform(final_sp_trans_xy, 25832)
 # names(final_sp_trans_xy) <- c("veg_loc_Altitude", "veg_loc_Accuracy", names(final_sp_trans_xy)[3:9],
 #                               "plot_loc_Latitude", "plot_loc_Longitude", "plot_loc_Altitude",
 #                               "plot_loc_Accuracy", names(final_sp_trans_xy)[14:19])
 # st_write(final_sp_trans_xy, paste0(file_name, ".shp"), delete_layer = T)
 
 # 2D kml
-final_sp_trans_xy <- sf::st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude'), crs = 4326)
-#final_sp_trans_xy <- sf::st_transform(final_sp_trans_xyz, 25832) # wird eh als WGS84 gespeichert
+final_sp_trans_xy <- st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude'), crs = 4326)
+#final_sp_trans_xy <- st_transform(final_sp_trans_xyz, 25832) # wird eh als WGS84 gespeichert
 st_write(final_sp_trans_xy, paste0(file_name, "_2D.kml"), delete_layer = T)
 
 # 3D kml
-final_sp_trans_xyz <- sf::st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude', 'veg_loc:Altitude'), crs = 4326)
-#final_sp_trans_xyz <- sf::st_transform(final_sp_trans_xyz, 25832) # wird eh als WGS84 gespeichert
+final_sp_trans_xyz <- st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude', 'veg_loc:Altitude'), crs = 4326)
+#final_sp_trans_xyz <- st_transform(final_sp_trans_xyz, 25832) # wird eh als WGS84 gespeichert
 st_write(final_sp_trans_xyz, paste0(file_name, "_3D.kml"), delete_layer = T)

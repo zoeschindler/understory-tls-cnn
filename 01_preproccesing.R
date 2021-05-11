@@ -7,10 +7,9 @@
 # currently uses: Reflectance, Deviation, Target Index, Target Count
 # currently no: RGB, LAScatalogues
 
-
 # load packages
-library(lidR)
 library(dplyr)
+library(lidR)
 library(sf)
 
 # set path

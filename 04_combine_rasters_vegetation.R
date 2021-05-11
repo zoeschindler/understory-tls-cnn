@@ -1,0 +1,279 @@
+################################################################################
+################################################################################
+# COMBINING RASTER & VEGATATION
+################################################################################
+################################################################################
+
+# load packages
+library(lidR)
+library(sf)
+
+# set paths
+#path_points   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/thinning_mean_cirle10.las"
+path_points   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/_Testwolke/OT8cm_small.las"
+path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"
+path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_2D.kml"
+
+################################################################################
+# HELPER FUNCTIONS
+################################################################################
+
+check_create_dir <- function(path) {
+  # checks if directory exists
+  # if not, creates it
+  if (!dir.exists(path)) {
+    print("... creating new folder")
+    dir.create(path)
+  } else {
+    print("... using existing folder")
+  }
+}
+
+################################################################################
+# FILTER MIDSTORY PLOTS
+################################################################################
+
+filter_midstory <- function(nDSM_unscaled_dir, plot_path, tile_size) {
+  # check if nDSM values are above 2m
+  print("... removing midstory points")
+  # empty list for storing "bad" points
+  midstory_plots <- c()
+  # read as kml + transform CRS
+  plots <- st_transform(st_read(plot_path), 25832)
+  # get all rasters within nDSM_dir
+  nDSM_list <- list.files(nDSM_unscaled_dir, pattern=".tif", recursive=TRUE)
+  # calculate edge length (divisible by two)
+  edge <- ((tile_size*100)%/%2)/100
+  # loop through nDSMs
+  for (nDSM_path in nDSM_list) {
+    # load raster
+    nDSM <- raster(paste0(nDSM_unscaled_dir,"/",nDSM_path))
+    crs(nDSM) <- CRS("+init=EPSG:25832")
+    # get points within raster extent
+    subset <- st_intersection(plots, st_set_crs(st_as_sf(as(extent(nDSM), "SpatialPolygons")), st_crs(plots)))
+    # loop through plots
+    for (idx in 1:nrow(subset)) {
+      plot <- subset[idx,]
+      # clip raster with point + edge
+      center_x <- round(st_coordinates(plot)[,1], 2) # round on cm
+      center_y <- round(st_coordinates(plot)[,2], 2) # round on cm
+      rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge, ymin=center_y-edge, ymax=center_y+edge))
+      clip <- crop(nDSM, rectangle)
+      # check height
+      if ((quantile(as.vector(clip), 0.95, na.rm=T) >= 2) &  !all(is.na(as.vector(clip)))) {
+        midstory_plots <- append(midstory_plots, plot$Description)
+      }
+    }
+  }
+  # delete midstory points
+  filtered_plots <- plots[!plots$Description %in% midstory_plots,]
+  # save filtered points
+  st_write(filtered_plots, paste0(substr(plot_path, 1, nchar(plot_path)-4), "_no_midstory.kml"), delete_layer = T)
+  return(paste0(substr(plot_path, 1, nchar(plot_path)-4), "_no_midstory.kml"))
+}
+
+################################################################################
+
+# # testing filter_midstory
+# tile_size <- 0.64
+# nDSM_unscaled_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/nDSM_unscaled"
+# plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/points_new.kml"
+# filter_midstory(nDSM_unscaled_dir, plot_path, tile_size)
+
+################################################################################
+# FILTER OVERLAPPING PLOTS
+################################################################################
+
+filter_overlaps <- function(plot_path, tile_size) {
+  # check if nDSM values are above 2m
+  print("... removing overlapping points")
+  # read as kml + transform CRS
+  plots <- st_transform(st_read(plot_path), 25832)
+  # calculate edge length (divisible by two)
+  edge <- ((tile_size*100)%/%2)/100
+  # convert points to polygons with according tilesize
+  center_x <- round(st_coordinates(plots)[,1], 2) # round on cm
+  center_y <- round(st_coordinates(plots)[,2], 2) # round on cm
+  polygon_list <- c()
+  for (i in 1:nrow(plots)) {
+    polygon <- extent(c(xmin=center_x[i]-edge, xmax=center_x[i]+edge, ymin=center_y[i]-edge, ymax=center_y[i]+edge))
+    polygon_list <- rbind(polygon_list, st_as_sf(as(polygon, "SpatialPolygons")))
+    # TODO: description must be passed over!!
+  }
+  polygon_list$Description <- plots$Description
+  polygon_list <- st_set_crs(polygon_list, 25832)
+  # iteratively remove overlapping polygons
+  repeat {
+    # get list of overlapping points
+    overlapping_polygons <- st_intersects(polygon_list, polygon_list)
+    # get the indices of overlapping polygons
+    overlapping_indices <- c()
+    for (i in 1:length(overlapping_polygons)) {
+      if (length(overlapping_polygons[[i]]) > 1) {
+        overlapping_indices <- c(overlapping_indices, overlapping_polygons[[i]])
+      }
+    }
+    # stop if there are no duplicates anymore
+    if(length(overlapping_indices) == 0) {
+      break
+    }
+    # otherwise, randomly remove one of the overlapping polygons
+    print(paste0("number of overlapping poygons: ", length(unique(as.factor(overlapping_indices)))))
+    #most_occuring_polygon <- as.numeric(as.character(as.data.frame(sort(table(overlapping_indices), decreasing=TRUE))$overlapping_indices[1]))
+    #polygon_list <- polygon_list[-most_occuring_polygon,]
+    polygon_idx <- overlapping_indices[floor(runif(1, min = 1, max=length(overlapping_indices)+1))] # random polygon index
+    polygon_list <- polygon_list[-polygon_idx,]
+  }
+  # keep plots which have same geometry as filtered_points
+  new_plots <- plots[plots$Description %in% polygon_list$Description,]
+  # save filtered points
+  st_write(new_plots, paste0(substr(plot_path, 1, nchar(plot_path)-4), "_no_overlap.kml"), delete_layer = T)
+  return(paste0(substr(plot_path, 1, nchar(plot_path)-4), "_no_overlap.kml"))
+}
+
+################################################################################
+
+# # testing filter_overlaps
+# tile_size <- 0.64
+# plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/overlap/example_points_.kml"
+# filter_overlaps(plot_path, tile_size)
+
+################################################################################
+# RASTER TILES
+################################################################################
+
+raster_clip_all <- function(raster_dir, plot_path, tile_size, output_dir) {
+  # clips all rasters to small areas around the vegetation plots
+  # creates folder structures similar to the input rasters
+  check_create_dir(output_dir)
+  print("... clipping all rasters")
+  # read as kml + transform CRS
+  plots <- st_transform(st_read(plot_path), 25832)
+  # get all rasters within raster_dir
+  raster_list <- list.files(raster_dir, pattern=".tif", recursive=TRUE)
+  # calculate edge length (divisible by two)
+  edge <- ((tile_size*100)%/%2)/100
+  # loop through rasters
+  for (raster_path in raster_list) {
+    # load raster
+    raster <- raster(paste0(raster_dir,"/",raster_path))
+    crs(raster) <- CRS("+init=EPSG:25832")
+    # get points within raster extent
+    subset <- st_intersection(plots, st_set_crs(st_as_sf(as(extent(raster), "SpatialPolygons")), st_crs(plots)))
+    # get raster dir & type & name
+    subfolder <- strsplit(raster_path, "/")[[1]][1]
+    name <- strsplit(strsplit(raster_path, "/")[[1]][2], "[.]")[[1]][1]
+    # loop through plots
+    for (idx in 1:nrow(subset)) {
+      plot <- subset[idx,]
+      # clip raster with point + edge
+      center_x <- round(st_coordinates(plot)[,1], 2) # round on cm
+      center_y <- round(st_coordinates(plot)[,2], 2) # round on cm
+      rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge, ymin=center_y-edge, ymax=center_y+edge))
+      clip <- crop(raster, rectangle)
+      # get plot plot_ID & veg_ID
+      plot_id <- strsplit(strsplit(plot$Description, ",")[[1]][1], " ")[[1]][2]
+      veg_id <- strsplit(strsplit(plot$Description, ",")[[1]][2], " ")[[1]][3]
+      # check if raster is empty, only continue if not
+      if (!all(is.na(as.vector(clip)))) {
+        # save clip
+        check_create_dir(paste0(output_dir, "/", subfolder))
+        writeRaster(clip, paste0(output_dir, "/", subfolder, "/", name,
+                                 "_", plot_id, "_", veg_id, ".tif"), overwrite=TRUE)
+      }
+      # else {
+      #   print("empty raster")
+      #   print(paste0("plot_id: ", plot_id, " | veg_id: ", veg_id))
+      #   print("---")
+      # }
+    }
+  }
+}
+
+################################################################################
+
+# # testing raster_clip_all
+# tile_size <- 0.64
+# output_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"
+# raster_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy"
+# plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/points_new_filtered.kml"
+# raster_clip_all(raster_dir, plot_path, tile_size, output_dir)
+
+################################################################################
+
+# # testing filtering & clipping
+# 
+# tile_size <- 0.64
+# nDSM_unscaled_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/nDSM_unscaled"
+# plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/example_points.kml"
+# output_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"
+# raster_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy"
+# 
+# plot_path_2 <- filter_midstory(nDSM_unscaled_dir, plot_path, tile_size)
+# plot_path_3 <- filter_overlaps(plot_path_2, tile_size)
+# raster_clip_all(raster_dir, plot_path_3, tile_size, output_dir)
+
+################################################################################
+# COLINEARITY CHECKS
+################################################################################
+
+# hierfür sind fertige, normalisierte Raster notwendig, die in dataframe umgewandlet werden
+
+raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE)
+rasters <- list()
+for (i in raster_list) {rasters[i] = raster(paste0(path_rasters, "/", i))}
+# Raster-Werte: pro Raster-Typ eine Spalte
+# for (i in raster_list) {rasters[i] = as.vector(raster(paste0(path_rasters, "/", i)))}
+# Raster: Raster mit rbind drunter hauen, wenn mehrere da
+# 
+
+# PROBLEM: mehrere Bänder pro Bild manchmal! (rgb, reflectance)
+
+# PCA biplot:
+# - gleiche Richtung = positiv korreliert
+# - entgegengesetzt = negativ korreliert
+# - 90 Grad = nicht korreliert
+
+# Code von Env Stat Kurs
+# TODO: anpassen an neue Daten
+
+# PCA
+# making pretty graphs: https://www.datacamp.com/community/tutorials/pca-analysis-r
+
+PCA_bird <- prcomp(bird[,-c(1:3)])
+str(PCA_bird)
+summary(PCA_bird) # with 5 PCs we are above the 90% explained variance
+
+names(PCA_bird$sdev) <- as.character(1:12)
+par(mar=c(5,5,1,1))
+screeplot(PCA_bird, las=1, main="", cex.lab=1.5, xlab="Hauptkomponenten")  # to see which PCs explain how much variance
+
+round(PCA_bird$rotation, 2) # here we can see how important the variables is for each PC
+round(PCA_bird$x,2)  # new coordinates of the data points
+biplot(PCA_bird, xlim=c(-0.045, 0.045), ylim=c(-0.045, 0.045))  # idk what is going on here
+
+
+# CLUSTER
+
+clust_1 <- varclus(as.matrix(bird[,-c(1:3)]), similarity = c("spearman"))  # make a cluster
+plot(clust_1)
+abline(h=0.7^2, lty=2, col="tomato")
+# I have 3 variables, which are okay, I have to exclude a lot
+
+clust_2 <- varclus(as.matrix(bird[,-c(1:3, 5:7, 11, 14:15)]), similarity = c("spearman"))
+plot(clust_2)
+abline(h=(0.7^2), lty=3, col="tomato")
+# decision between predictors
+
+clust_3 <- varclus(as.matrix(bird[,-c(1:3, 5:7, 9, 10:11, 14)]), similarity = c("spearman"))
+plot(clust_3)
+abline(h=(0.7^2), lty=3, col="tomato")
+# kick out SAVANNA, because SHRUBS are more important for my bird
+# kick out PRE_YEAR because we need to have PRE_SUMMER in there
+# kick out TMIN_JUL, TMIN_JAN, T_SUMMER, PRE_WINTER for T_WINTER because all climate zones my bird likes have mild winters
+# kick out SHRUBS for TDIFF because the climate variables mostlikely kinda explain SHRUBS also
+
+# checking if everything under threshold
+clust_3[["sim"]]
+clust_3[["sim"]]>(0.7^2)
+cor(bird[,-c(1:3, 5:7, 9, 10:11, 14)], method="spearman")
