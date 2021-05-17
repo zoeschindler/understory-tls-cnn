@@ -105,7 +105,7 @@ metric_ortho <- function(r, g, b, z) {
 
 add_geometry <- function(las) {
   # necessary for raster_geometry
-  eigen <- eigen_decomposition(las, 20, 6) # 20 neighbours, 6 cores
+  eigen <- eigen_decomposition(las, 20, 6)  # 20 neighbours, 6 cores
   las <- add_lasattribute(las, eigen[,3]/(eigen[,1] + eigen[,2] + eigen[,3]), "curvature", "curvature")
   las <- add_lasattribute(las, (eigen[,1] - eigen[,2])/eigen[,1], "linearity", "linearity")
   las <- add_lasattribute(las, (eigen[,2] - eigen[,3])/eigen[,1], "planarity", "planarity")
@@ -154,7 +154,6 @@ get_geometry_dict <- function(){
 
 metric_reflectance <- function(r) {
   # necessary for raster_intensity
-  # TODO: welche Statistik will ich haben? mean?
   reflectances = list(
     mean = mean(r),
     median = median(r),
@@ -199,7 +198,7 @@ raster_nDSM <- function(point_cloud, resolution, output_dir, output_name, rescal
   # normalize point cloud
   point_cloud_norm <- normalize_height(point_cloud, dtm, na.rm = T)
   # create chm / nDSM
-  chm <- grid_metrics(point_cloud_norm, ~max(Z), res = resolution) # no smooting at all
+  chm <- grid_metrics(point_cloud_norm, ~max(Z), res = resolution) # no smoothing at all
   # chm <- grid_canopy(point_cloud_norm, res = resolution, p2r())
   # rescale raster
   if (rescale) {
@@ -391,11 +390,14 @@ raster_create_all <- function(point_cloud, resolution, raster_dir, output_name) 
 
 # calculating all necessary rasters
 raster_create_all(cloud_norm, 0.01, path_rasters, "Breisach")
-raster_nDSM(cloud_raw, resolution, paste0(raster_dir, "/nDSM_unscaled"), output_name, rescale=FALSE) # has to be uncut cloud
+raster_nDSM(cloud_raw, resolution, paste0(raster_dir, "/nDSM_unscaled"), output_name, rescale=FALSE)  # has to be uncut cloud
 
 ################################################################################
 # COLINEARITY GEOMETRY CHECKS
 ################################################################################
+
+# path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters_copy"  # multiple areas
+# path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # single area
 
 # for this, all rasters must be computed and normalized
 # this part must be done manually!
@@ -405,35 +407,55 @@ raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE)
 raster_list <- raster_list[!grepl("nDSM", raster_list)]
 raster_list <- raster_list[!grepl("ortho", raster_list)]
 
-# load all rasters
+# load all those rasters
 rasters <- list()
 for (i in raster_list) {rasters[i] = raster(paste0(path_rasters, "/", i))}
 
-# stack rasters (of same area)
-raster_stack <- stack(rasters)
-# TODO
+# get unique area names
+area_names <- c()
+for (name in raster_list) {
+  name <- strsplit(name, "[.]")[[1]][1]
+  name <- strsplit(name, "_")
+  name <- name[[1]][length(name[[1]])-1]
+  area_names <- c(area_names, name)
+}
+unique_areas <- unique(area_names)
 
-# merge stacks (of all areas)
-# TODO, also the column names must be made similar
+# stack rasters (of same area respectively)
+raster_stacks <- c()
+for (area in unique_areas) {
+  single_stack <- stack(rasters[grepl(paste0("_", area, "_"), raster_list)])
+  raster_stacks <- c(raster_stacks, single_stack)
+  rm(single_stack)
+}
 
-# get random samples, so R does not kill itself
-raster_samples <- sampleRandom(raster_stack, size=5000, cells=FALSE, sp=TRUE)
-# samples are fewer, because it also samples NA values
-
-# transform to data frame
-raster_df <- as.data.frame(raster_samples@data, xy=FALSE)
-
-# names are horribly long and make life harder
-col_names <- names(raster_df)
-new_col_names <- c()
-for (name in col_names) {
+# change the band names so they match & are short
+band_names <- names(raster_stacks[[1]])  # assumes all have same rasters available
+new_band_names <- c()
+for (name in band_names) {
   name <- strsplit(name, "[.]")[[1]][2]
   name <- strsplit(name, "_")
   name <- name[[1]][1:2]
   name <- paste(name[1], name[2], sep="_")
-  new_col_names <- c(new_col_names, name)
+  new_band_names <- c(new_band_names, name)
 }
-names(raster_df) <- new_col_names
+for (i in 1:length(raster_stacks)) {
+  names(raster_stacks[[i]]) <- new_band_names
+}
+
+# prepare empty data frame for samples
+raster_df <- matrix(ncol = length(new_band_names), nrow=0)
+colnames(raster_df) <- new_band_names
+raster_df <- data.frame(raster_df)
+
+# draw samples from each plot & put them all into one data frame
+for (i in 1:length(raster_stacks)) {
+  raster_samples <- sampleRandom(raster_stacks[[i]], size=5000, cells=FALSE, sp=TRUE)
+  raster_samples_df <- as.data.frame(raster_samples@data, xy=FALSE)
+  raster_df <- rbind(raster_df, raster_samples_df)
+  rm(raster_samples)
+  rm(raster_samples_df)
+}
 
 ################################################################################
 
@@ -445,7 +467,7 @@ names(raster_df) <- new_col_names
 # - 90 Grad = nicht korreliert
 
 pca_all <- prcomp(raster_df)
-summary(pca_all) # with 5 PCs we are above the 90% explained variance
+summary(pca_all)  # with 5 PCs we are above the 90% explained variance
 names(pca_all$sdev) <- as.character(1:20)
 screeplot(pca_all, las=1, main="", cex.lab=1.5, xlab="Hauptkomponenten")  # to see which PCs explain how much variance
 round(pca_all$rotation, 2)  # here we can see how important the variables is for each PC
@@ -488,10 +510,14 @@ cor(raster_df[-c(17,19, 11,8,9, 4,16,3,14,15,5,2)], method="spearman")
 ## PCA 2
 
 pca_remains <- prcomp(raster_df[-c(17,19, 11,8,9, 4,16,3,14,15,5,2)])
-summary(pca_remains) # with 5 PCs we are above the 90% explained variance
+summary(pca_remains)  # with 5 PCs we are above the 90% explained variance
 names(pca_remains$sdev) <- as.character(1:20)
 screeplot(pca_remains, las=1, main="", cex.lab=1.5, xlab="Hauptkomponenten")  # to see which PCs explain how much variance
 round(pca_remains$rotation, 2)  # here we can see how important the variables is for each PC
 biplot(pca_remains, cex=c(0.5,1))#, xlim=c(-0.05, 0.05), ylim=c(-0.05, 0.05))
+
+################################################################################
+
+# save the final rasters in combinations the CNN should be fed with?
 
 ################################################################################
