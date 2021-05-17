@@ -6,7 +6,7 @@
 
 # load packages
 library(lidR)
-library(TreeLS)
+# library(TreeLS)
 
 # set paths
 #path_points   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/thinning_mean_cirle10.las"
@@ -15,13 +15,7 @@ path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"
 path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_2D.kml"
 
 # load data
-cloud_raw <- readTLSLAS(path_points) # TODO: passt eine Wolke komplett in RAM?
-cloud_norm <- cloud_raw # TODO kommt weg später maaal
-rm(cloud_raw) # TODO kommt weg später maaal
-
-# https://cran.r-project.org/web/packages/lidR/lidR.pdf
-
-# TODO: RGB hat mehrere Bänder pro Raster --> doof?
+cloud_raw <- readTLSLAS(path_points) # TODO passt eine Wolke komplett in RAM?
 
 ################################################################################
 # POINT CLOUD QUALITY CHECKS
@@ -39,33 +33,39 @@ rm(cloud_raw) # TODO kommt weg später maaal
 resolution_dtm = 0.1
 
 # normalize height
-cloud_raw <- classify_ground(cloud_raw, csf(class_threshold = 0.1, cloth_resolution = 1)) # is later used for creating nDSM
+cloud_raw <- classify_ground(cloud_raw, csf(class_threshold = 0.1, cloth_resolution = 1))
 dtm <- grid_terrain(filter_ground(cloud_raw), tin(), res = resolution_dtm)
 cloud_norm <- normalize_height(cloud_raw, dtm, na.rm = T)
-#plot(cloud_norm, axis = T)
 
-# Punkte mit negativem z-Wert raus kicken
+# delete below ground points
 cloud_norm <- filter_poi(cloud_norm, Z > 0)
-cloud_norm <- filter_poi(cloud_norm, Z <= 2)
 
-# delete trees from data when bigger than 2 meters
-?find_trees
+###
+
+# delete trees
+
 # https://github.com/Jean-Romain/lidR/wiki/Segment-individual-trees-and-compute-metrics#segment-the-trees
-# https://rdrr.io/cran/lidR/man/add_attribute.html
+  # sieht mies aus. lieber nicht.
+
+# https://jean-romain.github.io/lidRbook/itd-its.html#its-cloud
+  # dauert mir viel zu lange, da hab ich keine Geduld für
+
 # https://gis.stackexchange.com/questions/376772/removing-tree-stems-from-a-point-cloud-in-r
-# https://jean-romain.github.io/lidRbook/itd-its.html
+# https://github.com/tiagodc/TreeLS
+  # kann auch nur Stamm + Reise ausschneiden um Stamm
+
+# https://github.com/apburt/treeseg/
+  # nicht in R & benötigt Ubuntu
+
+###
 
 # delete points above 2m height
 cloud_under <- filter_poi(cloud_norm, Z <= 2)
 #plot(cloud_under, axis = T)
 
-# (mit Nummer des Returns overstory rauswerfen?)
-
 # save changed data
-writeLAS(cloud_norm, paste0(substr(path_points, 1, nchar(path_points)-4),
-                            "_normalized.las"))
-writeLAS(cloud_under, paste0(substr(path_points, 1, nchar(path_points)-4),
-                             "_understory.las"))
+writeLAS(cloud_norm, paste0(substr(path_points, 1, nchar(path_points)-4), "_normalized.las"))
+writeLAS(cloud_under, paste0(substr(path_points, 1, nchar(path_points)-4), "_understory.las"))
 
 ################################################################################
 # HELPER FUNCTIONS
@@ -352,19 +352,19 @@ raster_point_density <- function(point_cloud, resolution, output_dir, output_nam
 # 
 # # testing raster_ortho
 # raster_ortho(cloud_norm, 0.01, paste0(path_rasters, "/ortho"), "test")
-# plotRGB(stack("H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters/ortho/ortho_test_10cm.tif")*255)
+# plotRGB(stack("H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters/ortho/ortho_test_1cm.tif")*255)
 # 
 # # testing raster_geometry
 # raster_geometry(cloud_norm, 0.01, paste0(path_rasters, "/geometry"), "test")
-# plot(raster("H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters/geometry/planarity_mean_test_10cm.tif"))
+# plot(raster("H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters/geometry/planarity_mean_test_1cm.tif"))
 # 
 # # testing raster_reflectance
 # raster_reflectance(cloud_norm, 0.01, paste0(path_rasters, "/reflectance"), "test")
-# plot(raster("H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters/reflectance/reflectance_test_10cm.tif"))
+# plot(raster("H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters/reflectance/reflectance_test_1cm.tif"))
 # 
 # # testing raster_point_density
 # raster_point_density(cloud_norm, 0.01, paste0(path_rasters, "/density"), "test")
-# plot(raster("H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters/density/density_test_10cm.tif"))
+# plot(raster("H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters/density/density_test_1cm.tif"))
 
 ################################################################################
 # CREATE ALL RASTERS
@@ -376,7 +376,6 @@ raster_create_all <- function(point_cloud, resolution, raster_dir, output_name) 
   raster_geometry(point_cloud, resolution, paste0(raster_dir, "/geometry"), output_name)
   raster_reflectance(point_cloud, resolution, paste0(raster_dir, "/reflectance"), output_name)
   raster_point_density(point_cloud, resolution, paste0(raster_dir, "/density"), output_name)
-  raster_nDSM(point_cloud, resolution, paste0(raster_dir, "/nDSM_unscaled"), output_name, rescale=FALSE)
   print("done!")
 }
 
@@ -389,5 +388,115 @@ raster_create_all <- function(point_cloud, resolution, raster_dir, output_name) 
 
 ################################################################################
 
-# # testing raster_create_all
-# raster_create_all(cloud_norm, 0.01, path_rasters, "Breisach")
+# calculating all necessary rasters
+raster_create_all(cloud_norm, 0.01, path_rasters, "Breisach")
+raster_nDSM(cloud_raw, resolution, paste0(raster_dir, "/nDSM_unscaled"), output_name, rescale=FALSE) # has to be uncut cloud
+
+################################################################################
+# COLINEARITY GEOMETRY CHECKS
+################################################################################
+
+# for this, all rasters must be computed and normalized
+
+# get all relevant raster paths
+raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE)
+raster_list <- raster_list[!grepl("nDSM", raster_list)]
+raster_list <- raster_list[!grepl("ortho", raster_list)]
+
+# load all rasters
+rasters <- list()
+for (i in raster_list) {rasters[i] = raster(paste0(path_rasters, "/", i))}
+
+# # compare raster lengths (should be equal)
+# for (i in 1:length(rasters)) {
+#   print(raster_list[i])
+#   print(length(values(rasters[[i]])))
+#   print("---")
+# }
+
+# stack rasters (of same area)
+raster_stack <- stack(rasters)
+object.size(raster_stack)
+# TODO
+
+# merge stacks (of all areas)
+# TODO
+
+# get random samples, so R does not kill itself
+raster_samples <- sampleRandom(raster_stack, size=5000, cells=FALSE, sp=TRUE)
+# samples are fewer, because it also samples NA values
+
+
+
+# transform to data frame
+raster_df <- as.data.frame(raster_samples, xy=FALSE)
+
+# perform PCA
+
+
+# perform cluster analysis
+
+## PCA
+# https://stackoverflow.com/questions/19866009/pca-using-raster-datasets-in-r
+# pca <- princomp(raster_stack[], cor=T) # zu groß, läuft nicht mal für eine Fläche
+# https://rdrr.io/cran/RStoolbox/man/rasterPCA.html
+# library(RStoolbox)
+# pca <- rasterPCA(raster_stack, nSamples = NULL) # takes ages & does not finish
+
+## CORRELATION
+# https://stackoverflow.com/questions/32085858/pairwise-correlation-between-raster-layers-in-r
+# takes ages
+# https://rdrr.io/cran/spatialEco/man/rasterCorrelation.html
+# only for two rasters at once
+
+
+
+
+# PCA biplot:
+# - gleiche Richtung = positiv korreliert
+# - entgegengesetzt = negativ korreliert
+# - 90 Grad = nicht korreliert
+
+# Code von Env Stat Kurs
+# TODO: anpassen an neue Daten
+
+# PCA
+# making pretty graphs: https://www.datacamp.com/community/tutorials/pca-analysis-r
+
+PCA_bird <- prcomp(bird[,-c(1:3)])
+str(PCA_bird)
+summary(PCA_bird) # with 5 PCs we are above the 90% explained variance
+
+names(PCA_bird$sdev) <- as.character(1:12)
+par(mar=c(5,5,1,1))
+screeplot(PCA_bird, las=1, main="", cex.lab=1.5, xlab="Hauptkomponenten")  # to see which PCs explain how much variance
+
+round(PCA_bird$rotation, 2) # here we can see how important the variables is for each PC
+round(PCA_bird$x,2)  # new coordinates of the data points
+biplot(PCA_bird, xlim=c(-0.045, 0.045), ylim=c(-0.045, 0.045))  # idk what is going on here
+
+
+# CLUSTER
+
+clust_1 <- varclus(as.matrix(bird[,-c(1:3)]), similarity = c("spearman"))  # make a cluster
+plot(clust_1)
+abline(h=0.7^2, lty=2, col="tomato")
+# I have 3 variables, which are okay, I have to exclude a lot
+
+clust_2 <- varclus(as.matrix(bird[,-c(1:3, 5:7, 11, 14:15)]), similarity = c("spearman"))
+plot(clust_2)
+abline(h=(0.7^2), lty=3, col="tomato")
+# decision between predictors
+
+clust_3 <- varclus(as.matrix(bird[,-c(1:3, 5:7, 9, 10:11, 14)]), similarity = c("spearman"))
+plot(clust_3)
+abline(h=(0.7^2), lty=3, col="tomato")
+# kick out SAVANNA, because SHRUBS are more important for my bird
+# kick out PRE_YEAR because we need to have PRE_SUMMER in there
+# kick out TMIN_JUL, TMIN_JAN, T_SUMMER, PRE_WINTER for T_WINTER because all climate zones my bird likes have mild winters
+# kick out SHRUBS for TDIFF because the climate variables mostlikely kinda explain SHRUBS also
+
+# checking if everything under threshold
+clust_3[["sim"]]
+clust_3[["sim"]]>(0.7^2)
+cor(bird[,-c(1:3, 5:7, 9, 10:11, 14)], method="spearman")

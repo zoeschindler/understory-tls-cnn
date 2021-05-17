@@ -314,3 +314,5 @@ scan_paths <- c(scan2_path_noise_circle,
 # merge_and_thin(scan_paths, paste0("cirle", circle, "_res", resolution), resolution, method="random")
 # merge_and_thin(scan_paths, paste0("cirle", circle, "_res", resolution), resolution, method="mean")
 merge_and_thin(scan_paths, paste0("cirle", circle, "_res", resolution), resolution, method="min_deviation")
+
+################################################################################

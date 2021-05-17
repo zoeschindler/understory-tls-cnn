@@ -149,3 +149,5 @@ st_write(final_sp_trans_xy, paste0(file_name, "_2D.kml"), delete_layer = T)
 final_sp_trans_xyz <- st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude', 'veg_loc:Altitude'), crs = 4326)
 #final_sp_trans_xyz <- st_transform(final_sp_trans_xyz, 25832) # wird eh als WGS84 gespeichert
 st_write(final_sp_trans_xyz, paste0(file_name, "_3D.kml"), delete_layer = T)
+
+################################################################################

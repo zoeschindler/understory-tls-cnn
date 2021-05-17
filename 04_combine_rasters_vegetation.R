@@ -8,11 +8,10 @@
 library(lidR)
 library(sf)
 
-# set paths
-#path_points   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/thinning_mean_cirle10.las"
-path_points   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/_Testwolke/OT8cm_small.las"
-path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"
-path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_2D.kml"
+# # set paths
+# path_points   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/thinning_mean_cirle10.las"
+# path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"
+# path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_2D.kml"
 
 ################################################################################
 # HELPER FUNCTIONS
@@ -149,8 +148,9 @@ raster_clip_all <- function(raster_dir, plot_path, tile_size, output_dir) {
   print("... clipping all rasters")
   # read as kml + transform CRS
   plots <- st_transform(st_read(plot_path), 25832)
-  # get all rasters within raster_dir
+  # get all rasters within raster_dir (without unscaled nDSM)
   raster_list <- list.files(raster_dir, pattern=".tif", recursive=TRUE)
+  raster_list <- raster_list[!grepl("nDSM_unscaled", raster_list)]
   # calculate edge length (divisible by two)
   edge <- ((tile_size*100)%/%2)/100
   # loop through rasters
@@ -214,66 +214,3 @@ raster_clip_all <- function(raster_dir, plot_path, tile_size, output_dir) {
 # raster_clip_all(raster_dir, plot_path_3, tile_size, output_dir)
 
 ################################################################################
-# COLINEARITY CHECKS
-################################################################################
-
-# hierfür sind fertige, normalisierte Raster notwendig, die in dataframe umgewandlet werden
-
-raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE)
-rasters <- list()
-for (i in raster_list) {rasters[i] = raster(paste0(path_rasters, "/", i))}
-# Raster-Werte: pro Raster-Typ eine Spalte
-# for (i in raster_list) {rasters[i] = as.vector(raster(paste0(path_rasters, "/", i)))}
-# Raster: Raster mit rbind drunter hauen, wenn mehrere da
-# 
-
-# PROBLEM: mehrere Bänder pro Bild manchmal! (rgb, reflectance)
-
-# PCA biplot:
-# - gleiche Richtung = positiv korreliert
-# - entgegengesetzt = negativ korreliert
-# - 90 Grad = nicht korreliert
-
-# Code von Env Stat Kurs
-# TODO: anpassen an neue Daten
-
-# PCA
-# making pretty graphs: https://www.datacamp.com/community/tutorials/pca-analysis-r
-
-PCA_bird <- prcomp(bird[,-c(1:3)])
-str(PCA_bird)
-summary(PCA_bird) # with 5 PCs we are above the 90% explained variance
-
-names(PCA_bird$sdev) <- as.character(1:12)
-par(mar=c(5,5,1,1))
-screeplot(PCA_bird, las=1, main="", cex.lab=1.5, xlab="Hauptkomponenten")  # to see which PCs explain how much variance
-
-round(PCA_bird$rotation, 2) # here we can see how important the variables is for each PC
-round(PCA_bird$x,2)  # new coordinates of the data points
-biplot(PCA_bird, xlim=c(-0.045, 0.045), ylim=c(-0.045, 0.045))  # idk what is going on here
-
-
-# CLUSTER
-
-clust_1 <- varclus(as.matrix(bird[,-c(1:3)]), similarity = c("spearman"))  # make a cluster
-plot(clust_1)
-abline(h=0.7^2, lty=2, col="tomato")
-# I have 3 variables, which are okay, I have to exclude a lot
-
-clust_2 <- varclus(as.matrix(bird[,-c(1:3, 5:7, 11, 14:15)]), similarity = c("spearman"))
-plot(clust_2)
-abline(h=(0.7^2), lty=3, col="tomato")
-# decision between predictors
-
-clust_3 <- varclus(as.matrix(bird[,-c(1:3, 5:7, 9, 10:11, 14)]), similarity = c("spearman"))
-plot(clust_3)
-abline(h=(0.7^2), lty=3, col="tomato")
-# kick out SAVANNA, because SHRUBS are more important for my bird
-# kick out PRE_YEAR because we need to have PRE_SUMMER in there
-# kick out TMIN_JUL, TMIN_JAN, T_SUMMER, PRE_WINTER for T_WINTER because all climate zones my bird likes have mild winters
-# kick out SHRUBS for TDIFF because the climate variables mostlikely kinda explain SHRUBS also
-
-# checking if everything under threshold
-clust_3[["sim"]]
-clust_3[["sim"]]>(0.7^2)
-cor(bird[,-c(1:3, 5:7, 9, 10:11, 14)], method="spearman")
