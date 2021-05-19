@@ -42,8 +42,8 @@ writeLAS(cloud_under, paste0(substr(path_points, 1, nchar(path_points)-4), "_und
 # CALCULATE RASTERS
 ################################################################################
 
-raster_create_all(cloud_norm, 0.01, path_rasters, "Breisach")
-raster_nDSM(cloud_raw, resolution, paste0(raster_dir, "/nDSM_unscaled"), output_name, rescale=FALSE)  # has to be uncut cloud
+raster_create_all(cloud_under, 0.01, path_rasters, "Breisach")
+raster_nDSM(cloud_norm, resolution, paste0(raster_dir, "/nDSM_unscaled"), output_name, rescale=FALSE)  # has to be uncut cloud
 
 ################################################################################
 # COLINEARITY GEOMETRY CHECKS
