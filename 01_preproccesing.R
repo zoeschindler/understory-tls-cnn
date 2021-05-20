@@ -26,7 +26,7 @@ prepare_scan <- function(path) {
   scan <- readTLSLAS(path)
   scan <- scan %>%
     # classify ground
-    classify_ground(., csf(class_threshold = 2.0, cloth_resolution = 1)) %>%
+    classify_ground(., csf(class_threshold = 2.0, cloth_resolution = 0.3)) %>%
     filter_ground(.) %>%
     # rename scalar fields
     add_lasattribute(., .@data$`Scalar field`, "Reflectance", "Reflectance") %>%

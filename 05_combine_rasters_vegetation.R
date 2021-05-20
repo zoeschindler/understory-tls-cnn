@@ -8,10 +8,9 @@
 library(lidR)
 library(sf)
 
-# # set paths
-# path_points   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/thinning_mean_cirle10.las"
-# path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"
-# path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_2D.kml"
+# set paths
+path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"
+path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_2D.kml"
 
 ################################################################################
 # HELPER FUNCTIONS

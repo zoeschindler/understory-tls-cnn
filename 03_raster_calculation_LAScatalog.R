@@ -1,17 +1,17 @@
 ################################################################################
 ################################################################################
-# RASTER CALCULATION
+# RASTER CALCULATION - LAS CATALOGS
 ################################################################################
 ################################################################################
 
 # load packages
 library(lidR)  # for point clouds, also loads sp & raster
-library(Hmisc)  # for cluster analysis
 
 # set paths
-path_points <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/areaXY/testing.las"
-#path_points <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/areaXY/OT01cm.laz"
-points_name <- substr(basename(path_points), 1, nchar(basename(path_points))-4)
+path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # output
+path_points <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/areaXY/testing.las"  # input
+#path_points <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/areaXY/OT01cm.laz"  # input
+points_name <- substr(basename(path_points), 1, nchar(basename(path_points))-4)  # for the naming pattern
 
 # load functions
 source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/03_raster_calculation_functions.R")
@@ -49,8 +49,6 @@ normalize_ctg.LAScluster <- function(las) {
   return(las)
 }
 
-################################################################################
-
 normalize_ctg.LAScatalog <- function(las) {
   # undo previous selections
   opt_select(las) <-  "*"
@@ -65,7 +63,6 @@ normalize_ctg.LAScatalog <- function(las) {
 }
 
 ################################################################################
-################################################################################
 
 remove_understory_ctg.LAScluster <- function(las, height) {
   # load the data
@@ -78,8 +75,6 @@ remove_understory_ctg.LAScluster <- function(las, height) {
   las <- filter_poi(las, buffer == 0)
   return(las)
 }
-
-################################################################################
 
 remove_understory_ctg.LAScatalog <- function(las, height) {
   # undo previous selections
@@ -95,10 +90,10 @@ remove_understory_ctg.LAScatalog <- function(las, height) {
 }
 
 ################################################################################
-################################################################################
 
 lax_for_las <- function(point_dir) {
   # creates for all las files of a dir lax files
+  # (lax files provide performance improvements)
   las_files <- list.files(point_dir, pattern=".las", recursive=TRUE)
   for (las_file in las_files) {
     rlas::writelax(paste0(point_dir, "/", las_file))
@@ -124,11 +119,6 @@ lax_for_las(dirname(path_points))
 
 ################################################################################
 # CALCULATE RASTERS
-################################################################################
-
-
-################################################################################
-# COLINEARITY GEOMETRY CHECKS
 ################################################################################
 
 
