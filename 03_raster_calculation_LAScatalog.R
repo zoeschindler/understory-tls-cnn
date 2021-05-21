@@ -23,7 +23,7 @@ plot(ctg, chunk=TRUE)
 # separate huge LAS file into LAScatalog
 check_create_dir(paste0(dirname(path_points), "/01_tiled"))
 opt_output_files(ctg) <- paste0(dirname(path_points), "/01_tiled/", points_name, "_{ID}")
-opt_chunk_buffer(ctg) <- 0  # otherwise chunks are saved with buffer, bad practise
+opt_chunk_buffer(ctg) <- 0  # otherwise chunks are saved with buffer, bad practice
 opt_chunk_size(ctg) <- 25
 x_corner <- floor(bbox(ctg)[1,1])  # x left
 y_corner <- floor(bbox(ctg)[2,1])  # y bottom
@@ -44,6 +44,10 @@ normalize_ctg.LAScluster <- function(las) {
   dtm <- grid_terrain(las, tin(), res = 0.01)  # if bigger, there are many artifacts
   las <- normalize_height(las, dtm, na.rm = T)
   las <- filter_poi(las, Z >= 0)
+  # TODO: delete, dummy RGB data
+  las <- add_lasrgb(las, R=as.integer(floor(runif(las@data$X)*255)),
+                    G=as.integer(floor(runif(las@data$X)*255)),
+                    B=as.integer(floor(runif(las@data$X)*255)))
   # delete buffer & return points
   las <- filter_poi(las, buffer == 0)
   return(las)
@@ -121,5 +125,24 @@ lax_for_las(dirname(path_points))
 # CALCULATE RASTERS
 ################################################################################
 
+opt_chunk_buffer(ctg_understory) <- 0.5
+opt_chunk_size(ctg_understory) <- 25
+x_corner <- floor(bbox(ctg_understory)[1,1])  # x left
+y_corner <- floor(bbox(ctg_understory)[2,1])  # y bottom
+opt_chunk_alignment(ctg_understory) <- c(x_corner,y_corner)
+opt_output_files(ctg_understory) <- ""
+
+raster_create_all_ctg(ctg_understory, 0.01, path_rasters, points_name)
+
+################################################################################
+
+opt_chunk_buffer(ctg_normalized) <- 0.5
+opt_chunk_size(ctg_normalized) <- 25
+x_corner <- floor(bbox(ctg_normalized)[1,1])  # x left
+y_corner <- floor(bbox(ctg_normalized)[2,1])  # y bottom
+opt_chunk_alignment(ctg_normalized) <- c(x_corner,y_corner)
+opt_output_files(ctg_normalized) <- ""
+
+raster_nDSM_ctg.LAScatalog(ctg_normalized, 0.01, paste0(path_rasters, "/nDSM_unscaled"), points_name, rescale=FALSE)
 
 ################################################################################
