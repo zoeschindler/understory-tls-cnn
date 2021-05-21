@@ -18,6 +18,25 @@ source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/03_raster_calculation_fun
 cloud_raw <- readTLSLAS(path_points)  # only for small point clouds
 
 ################################################################################
+################################################################################
+# RASTER CALCULATION - LAS FILES
+################################################################################
+################################################################################
+
+# load packages
+library(lidR)  # for point clouds, also loads sp & raster
+
+# set paths
+path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # output
+path_points   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/areaXY/testing.las"  # input
+
+# load functions
+source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/03_raster_calculation_functions.R")
+
+# load data
+cloud_raw <- readTLSLAS(path_points)  # only for small point clouds
+
+################################################################################
 # FILTER UNDERSTORY POINTS
 ################################################################################
 
@@ -40,7 +59,7 @@ writeLAS(cloud_under, paste0(substr(path_points, 1, nchar(path_points)-4), "_und
 # CALCULATE RASTERS
 ################################################################################
 
-raster_create_all(cloud_under, 0.01, path_rasters, "Breisach")
-raster_nDSM(cloud_norm, resolution, paste0(raster_dir, "/nDSM_unscaled"), output_name, rescale=FALSE)  # has to be uncut cloud
+raster_create_all(cloud_under, 0.01, path_rasters, "test")
+raster_nDSM(cloud_norm, resolution, paste0(raster_dir, "/nDSM_unscaled"), "test", rescale=FALSE)
 
 ################################################################################
