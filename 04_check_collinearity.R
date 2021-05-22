@@ -1,8 +1,11 @@
 ################################################################################
 ################################################################################
-# COLINEARITY GEOMETRY CHECKS
+# RASTER COLINEARITY CHECKS
 ################################################################################
 ################################################################################
+
+# for this part, all rasters must be computed and normalized
+# selecting the rasters must be done manually
 
 # load packages
 library(raster)  # for rasters
@@ -11,9 +14,6 @@ library(Hmisc)  # for cluster analysis
 
 # path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters_copy"  # multiple areas
 path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # single area
-
-# for this, all rasters must be computed and normalized
-# this part must be done manually!
 
 # get all relevant raster paths
 raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE)

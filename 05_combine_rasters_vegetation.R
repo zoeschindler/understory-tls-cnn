@@ -9,8 +9,13 @@ library(lidR)
 library(sf)
 
 # set paths
-path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"
-path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_2D.kml"
+path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # input
+path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_2D.kml"  # input
+path_clips <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"  # output
+path_nDSM <- paste0(path_rasters, "/nDSM_unscaled")  # input
+
+# set parameter
+tile_size <- 0.64
 
 ################################################################################
 # HELPER FUNCTIONS
@@ -71,14 +76,6 @@ filter_midstory <- function(nDSM_unscaled_dir, plot_path, tile_size) {
 }
 
 ################################################################################
-
-# # testing filter_midstory
-# tile_size <- 0.64
-# nDSM_unscaled_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/nDSM_unscaled"
-# plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/points_new.kml"
-# filter_midstory(nDSM_unscaled_dir, plot_path, tile_size)
-
-################################################################################
 # FILTER OVERLAPPING PLOTS
 ################################################################################
 
@@ -111,15 +108,13 @@ filter_overlaps <- function(plot_path, tile_size) {
         overlapping_indices <- c(overlapping_indices, overlapping_polygons[[i]])
       }
     }
-    # stop if there are no duplicates anymore
+    # stop, if there are no duplicates anymore
     if(length(overlapping_indices) == 0) {
       break
     }
     # otherwise, randomly remove one of the overlapping polygons
     print(paste0("number of overlapping poygons: ", length(unique(as.factor(overlapping_indices)))))
-    #most_occuring_polygon <- as.numeric(as.character(as.data.frame(sort(table(overlapping_indices), decreasing=TRUE))$overlapping_indices[1]))
-    #polygon_list <- polygon_list[-most_occuring_polygon,]
-    polygon_idx <- overlapping_indices[floor(runif(1, min = 1, max=length(overlapping_indices)+1))] # random polygon index
+    polygon_idx <- overlapping_indices[floor(runif(1, min = 1, max=length(overlapping_indices)+1))]
     polygon_list <- polygon_list[-polygon_idx,]
   }
   # keep plots which have same geometry as filtered_points
@@ -128,13 +123,6 @@ filter_overlaps <- function(plot_path, tile_size) {
   st_write(new_plots, paste0(substr(plot_path, 1, nchar(plot_path)-4), "_no_overlap.kml"), delete_layer = T)
   return(paste0(substr(plot_path, 1, nchar(plot_path)-4), "_no_overlap.kml"))
 }
-
-################################################################################
-
-# # testing filter_overlaps
-# tile_size <- 0.64
-# plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/overlap/example_points_.kml"
-# filter_overlaps(plot_path, tile_size)
 
 ################################################################################
 # RASTER TILES
@@ -180,36 +168,16 @@ raster_clip_all <- function(raster_dir, plot_path, tile_size, output_dir) {
         writeRaster(clip, paste0(output_dir, "/", subfolder, "/", name,
                                  "_", plot_id, "_", veg_id, ".tif"), overwrite=TRUE)
       }
-      # else {
-      #   print("empty raster")
-      #   print(paste0("plot_id: ", plot_id, " | veg_id: ", veg_id))
-      #   print("---")
-      # }
     }
   }
 }
 
 ################################################################################
-
-# # testing raster_clip_all
-# tile_size <- 0.64
-# output_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"
-# raster_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy"
-# plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/points_new_filtered.kml"
-# raster_clip_all(raster_dir, plot_path, tile_size, output_dir)
-
+# EXECUTION
 ################################################################################
 
-# # testing filtering & clipping
-# 
-# tile_size <- 0.64
-# nDSM_unscaled_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/nDSM_unscaled"
-# plot_path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy/example_points.kml"
-# output_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"
-# raster_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/dummy"
-# 
-# plot_path_2 <- filter_midstory(nDSM_unscaled_dir, plot_path, tile_size)
-# plot_path_3 <- filter_overlaps(plot_path_2, tile_size)
-# raster_clip_all(raster_dir, plot_path_3, tile_size, output_dir)
+path_vegetation <- filter_midstory(path_nDSM, path_vegetation, tile_size)
+path_vegetation <- filter_overlaps(path_vegetation, tile_size)
+raster_clip_all(path_rasters, path_vegetation, tile_size, path_clips)
 
 ################################################################################
