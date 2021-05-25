@@ -7,18 +7,14 @@
 # load packages
 library(lidR)  # for point clouds, also loads sp & raster
 
-# # set paths
-# path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # output
-# path_points <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/areaXY/testing.las"  # input
-# #path_points <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/areaXY/OT01cm.laz"  # input
-# points_name <- substr(basename(path_points), 1, nchar(basename(path_points))-4)  # for the naming pattern
-# 
-# # load functions
-# source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/03_raster_calculation_functions.R")
+# load functions
+source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/03_raster_calculation_functions.R")
 
 # set paths
-path_rasters  <- "D:/Zoe_Masterarbeit/4_Daten/rasters"  # output
-path_points <- "D:/Zoe_Masterarbeit/4_Daten/points/areaXY/testing.las"  # input
+path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # output
+check_create_dir(path_rasters)
+#path_points <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/areaXY/testing.las"  # input
+path_points <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/areaXY/OT01cm.laz"  # input
 points_name <- substr(basename(path_points), 1, nchar(basename(path_points))-4)  # for the naming pattern
 
 # set chunk parameters
@@ -26,11 +22,9 @@ chunk_size <- 25
 buffer_size <- 0.5
 raster_resolution <- 0.01
 
-# load functions
-source("D:/Zoe_Masterarbeit/5_Analyse/03_raster_calculation_functions.R")
-
 # load data
 ctg <- readTLSLAScatalog(path_points)
+lidR:::catalog_laxindex(ctg)  # lax file for big file
 plot(ctg, chunk=TRUE)
 
 # separate huge LAS file into LAScatalog
@@ -43,6 +37,8 @@ y_corner <- floor(bbox(ctg)[2,1])  # y bottom
 opt_chunk_alignment(ctg) <- c(x_corner,y_corner)
 # plot(ctg, chunk = TRUE)
 ctg_retiled <- catalog_retile(ctg)
+lidR:::catalog_laxindex(ctg_retiled)  # lax files for small files
+warnings()
 
 ################################################################################
 # FILTER UNDERSTORY POINTS
@@ -53,15 +49,16 @@ opt_chunk_buffer(ctg_retiled) <- buffer_size
 check_create_dir(paste0(dirname(path_points), "/02_normalized"))
 opt_output_files(ctg_retiled) <- paste0(dirname(path_points), "/02_normalized/", points_name, "_{ID}")
 ctg_normalized <- normalize_ctg.LAScatalog(ctg_retiled)
+lidR:::catalog_laxindex(ctg_normalized)
+warnings()
 
 # remove everything above 2 m height
 opt_chunk_buffer(ctg_normalized) <- buffer_size
 check_create_dir(paste0(dirname(path_points), "/03_understory"))
 opt_output_files(ctg_normalized) <- paste0(dirname(path_points), "/03_understory/", points_name, "_{ID}")
 ctg_understory <- remove_understory_ctg.LAScatalog(ctg_normalized, height=2)
-
-# create lax files for everything (for faster processing)
-lax_for_las(dirname(path_points))
+lidR:::catalog_laxindex(ctg_understory)
+warnings()
 
 ################################################################################
 # CALCULATE RASTERS
@@ -75,6 +72,7 @@ opt_chunk_alignment(ctg_understory) <- c(x_corner,y_corner)
 opt_output_files(ctg_understory) <- ""
 
 raster_create_all_ctg(ctg_understory, raster_resolution, path_rasters, points_name)
+warnings()
 
 ################################################################################
 
@@ -87,5 +85,6 @@ opt_output_files(ctg_normalized) <- ""
 
 raster_nDSM_ctg.LAScatalog(ctg_normalized, raster_resolution, paste0(path_rasters, "/nDSM_unscaled"),
                            points_name, rescale=FALSE)
+warnings()
 
 ################################################################################
