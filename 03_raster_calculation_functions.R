@@ -5,7 +5,7 @@
 ################################################################################
 
 # line 32: path to cpp-file
-# line 46: amount of cores!
+# line 53: amount of cores
 
 # load packages
 library(lidR)  # for point clouds, also loads sp & raster
