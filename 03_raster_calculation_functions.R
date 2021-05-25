@@ -28,8 +28,7 @@ check_create_dir <- function(path) {
 
 # fast eigenvalue calculation
 # source: https://gis.stackexchange.com/questions/395916/get-eigenvalues-of-large-point-cloud-using-lidr
-# Rcpp::sourceCpp("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/eigen_decomposition.cpp")
-Rcpp::sourceCpp("D:/Zoe_Masterarbeit/5_Analyse/eigen_decomposition.cpp")
+Rcpp::sourceCpp("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/eigen_decomposition.cpp")
 
 ################################################################################
 
@@ -124,9 +123,9 @@ normalize_ctg.LAScluster <- function(las) {
   las <- normalize_height(las, dtm, na.rm = T)
   las <- filter_poi(las, Z >= 0)
   # TODO: delete, dummy RGB data
-  las <- add_lasrgb(las, R=as.integer(floor(runif(las@data$X)*255)),
-                    G=as.integer(floor(runif(las@data$X)*255)),
-                    B=as.integer(floor(runif(las@data$X)*255)))
+  # las <- add_lasrgb(las, R=as.integer(floor(runif(las@data$X)*255)),
+  #                   G=as.integer(floor(runif(las@data$X)*255)),
+  #                   B=as.integer(floor(runif(las@data$X)*255)))
   # delete buffer & return points
   las <- filter_poi(las, buffer == 0)
   return(las)
@@ -176,17 +175,6 @@ remove_understory_ctg.LAScatalog <- function(las, height) {
 }
 
 ################################################################################
-
-lax_for_las <- function(point_dir) {
-  # creates for all las files of a dir lax files
-  # (lax files provide performance improvements)
-  las_files <- list.files(point_dir, pattern=".las", recursive=TRUE)
-  for (las_file in las_files) {
-    rlas::writelax(paste0(point_dir, "/", las_file))
-  }
-}
-
-################################################################################
 # SINGLE RASTER FUNCTIONS - LAS FILES
 ################################################################################
 
@@ -194,15 +182,8 @@ raster_nDSM <- function(point_cloud, resolution, output_dir, output_name, rescal
   # saves or returns nDSM raster
   check_create_dir(output_dir)
   print("... creating nDSM")
-  # classify ground (was already done before)
-  # point_cloud <- classify_ground(point_cloud, csf(class_threshold = 0.1, cloth_resolution = 1)) 
-  # create dtm
-  dtm <- grid_terrain(filter_ground(point_cloud), tin(), res = resolution)
-  # normalize point cloud
-  point_cloud_norm <- normalize_height(point_cloud, dtm, na.rm = T)
   # create chm / nDSM
-  chm <- grid_metrics(point_cloud_norm, ~max(Z), res = resolution) # no smoothing at all
-  # chm <- grid_canopy(point_cloud_norm, res = resolution, p2r())
+  chm <- grid_metrics(point_cloud, ~max(Z), res = resolution)
   # rescale raster
   if (rescale) {
     chm <- rescale_raster(chm)
@@ -358,7 +339,8 @@ raster_nDSM_ctg.LAScatalog <- function(las, resolution, output_dir, output_name,
   options <- list(
     need_output_file = FALSE,  # output path not necessary
     need_buffer = TRUE,  # buffer necessary
-    automerge = TRUE)  # combine outputs
+    automerge = TRUE,  # combine outputs
+    raster_alignment = resolution)  # align chunks & rasters
   # calculate & merge raster
   output  <- catalog_apply(las, raster_nDSM_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
@@ -401,12 +383,13 @@ raster_ortho_ctg.LAScatalog <- function(las, resolution, output_dir, output_name
   options <- list(
     need_output_file = FALSE,  # output path not necessary
     need_buffer = TRUE,  # buffer necessary
-    automerge = TRUE)  # combine outputs
+    automerge = TRUE,  # combine outputs
+    raster_alignment = resolution)  # align chunks & rasters
   # calculate & merge raster
   output  <- catalog_apply(las, raster_ortho_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
-  # rescale raster
+  # rescale all raster bands at once to keep relations
   if (rescale) {
     output <- rescale_raster(output)
   }
@@ -444,25 +427,31 @@ raster_geometry_ctg.LAScatalog <- function(las, resolution, output_dir, output_n
   options <- list(
     need_output_file = FALSE,  # output path not necessary
     need_buffer = TRUE,  # buffer necessary
-    automerge = TRUE)  # combine outputs
+    automerge = TRUE,  # combine outputs
+    raster_alignment = resolution)  # align chunks & rasters
   # calculate & merge raster
   output  <- catalog_apply(las, raster_geometry_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
-  # rescale raster
-  if (rescale) {
-    output <- rescale_raster(output)
-  }
-  if (saving) {
-    # save each band separately
-    for (idx in 1:dim(output)[3]) {
-      raster_band <- output[[idx]]
-      type <- names(raster_band)
+  # loop through bands
+  for (idx in 1:dim(output)[3]) {
+    raster_band <- output[[idx]]
+    type <- names(raster_band)
+    # rescale band
+    if (rescale) {
+      raster_band <- rescale_raster(raster_band)
+    }
+    if (saving) {
+      # save each band separately
       writeRaster(raster_band, paste0(output_dir, "/", type, "_", output_name, "_",
                                       resolution*100, "cm.tif"), overwrite = TRUE)
+    } else {
+      # replace with rescaled band
+      output[[idx]] <- raster_band
     }
-  } else {
-    # return raster stack
+  }
+  # return bands stacked
+  if (!saving) {
     return(output)
   }
 }
@@ -491,25 +480,31 @@ raster_reflectance_ctg.LAScatalog <- function(las, resolution, output_dir, outpu
   options <- list(
     need_output_file = FALSE,  # output path not necessary
     need_buffer = TRUE,  # buffer necessary
-    automerge = TRUE)  # combine outputs
+    automerge = TRUE,  # combine outputs
+    raster_alignment = resolution)  # align chunks & rasters
   # calculate & merge raster
   output  <- catalog_apply(las, raster_reflectance_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
-  # rescale raster
-  if (rescale) {
-    output <- rescale_raster(output)
-  }
-  if (saving) {
-    # save each band separately
-    for (idx in 1:dim(output)[3]) {
-      raster_band <- output[[idx]]
-      type <- names(raster_band)
-      writeRaster(raster_band, paste0(output_dir, "/reflectance_", type, "_",
-                                      output_name, "_", resolution*100, "cm.tif"),overwrite = TRUE)
+  # loop through bands
+  for (idx in 1:dim(output)[3]) {
+    raster_band <- output[[idx]]
+    type <- names(raster_band)
+    # rescale band
+    if (rescale) {
+      raster_band <- rescale_raster(raster_band)
     }
-  } else {
-    # return raster stack
+    if (saving) {
+      # save each band separately
+      writeRaster(raster_band, paste0(output_dir, "/reflectance_", type, "_",
+                                    output_name, "_", resolution*100, "cm.tif"), overwrite = TRUE)
+    } else {
+      # replace with rescaled band
+      output[[idx]] <- raster_band
+    }
+  }
+  # return bands stacked
+  if (!saving) {
     return(output)
   }
 }
@@ -538,7 +533,8 @@ raster_point_density_ctg.LAScatalog <- function(las, resolution, output_dir, out
   options <- list(
     need_output_file = FALSE,  # output path not necessary
     need_buffer = TRUE,  # buffer necessary
-    automerge = TRUE)  # combine outputs
+    automerge = TRUE,  # combine outputs
+    raster_alignment = resolution)  # align chunks & rasters
   # calculate & merge raster
   output  <- catalog_apply(las, raster_point_density_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
