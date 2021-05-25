@@ -13,7 +13,7 @@ require(sf)
 home_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation"
 setwd(home_dir)
 
-# cleaning?
+# clean the data?
 clean = TRUE
 if (clean) {
   file_name <- "Export_ODK_clean"
@@ -73,7 +73,7 @@ rm(part1, part2)
 # CLEANING
 ################################################################################
 
- if (clean) {
+if (clean) {
   # clean up data
   summary(as.factor(final$veg_type))
   # deleting points
@@ -151,3 +151,28 @@ final_sp_trans_xyz <- st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_lo
 st_write(final_sp_trans_xyz, paste0(file_name, "_3D.kml"), delete_layer = T)
 
 ################################################################################
+# COMPARING IMAGES & LABELS
+################################################################################
+
+library(jpeg)
+
+path <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation"
+
+setwd(path)
+df <- read.csv("Export_ODK_clean.csv")
+unique(df$veg_type)
+
+plots <- c()
+label <- c()
+
+for (i in 1:nrow(df)) {
+  print("-----")
+  print(paste0("Plot: ", df$veg_ID[i]))
+  print(paste0("Label: ", df$veg_type[i]))
+  jj <- readJPEG(paste0(path, "/images/", df$filename[i]), native=TRUE)
+  plot(0:1, 0:1, type="n")
+  rasterImage(jj,0,0,1,1)
+  input <- readline(prompt="Label correct? ") # y oder n
+  plots <- c(plots, df$veg_ID[i])
+  label <- c(label, input)
+}

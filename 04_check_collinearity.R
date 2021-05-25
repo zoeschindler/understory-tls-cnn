@@ -17,8 +17,8 @@ path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # singl
 
 # get all relevant raster paths
 raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE)
-raster_list <- raster_list[!grepl("nDSM", raster_list)]
-raster_list <- raster_list[!grepl("ortho", raster_list)]
+raster_list <- raster_list[!grepl("nDSM_unscaled", raster_list)]  # reove unscales nDSM from list
+raster_list <- raster_list[!grepl("ortho", raster_list)]  # I want to keep this anyway
 
 # load all those rasters
 rasters <- list()
