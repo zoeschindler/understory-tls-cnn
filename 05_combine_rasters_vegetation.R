@@ -10,7 +10,7 @@ library(sf)
 
 # set paths
 path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # input
-path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_2D.kml"  # input
+path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_checked.kml"  # input
 path_clips <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"  # output
 path_nDSM <- paste0(path_rasters, "/nDSM_unscaled")  # input
 

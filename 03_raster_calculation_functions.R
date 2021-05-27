@@ -333,7 +333,7 @@ raster_nDSM_ctg.LAScluster <- function(las, resolution, output_dir, output_name,
 raster_nDSM_ctg.LAScatalog <- function(las, resolution, output_dir, output_name, rescale=TRUE, saving=TRUE) {
   # saves or returns nDSM raster (LAS catalog)
   # undo previous selections
-  opt_select(las) <-  "*"
+  opt_select(las) <-  "xyz"
   # delete output path
   opt_output_files(las) <- ""
   # set parameters
@@ -421,7 +421,7 @@ raster_geometry_ctg.LAScluster <- function(las, resolution, output_dir, output_n
 raster_geometry_ctg.LAScatalog <- function(las, resolution, output_dir, output_name, rescale=TRUE, saving=TRUE) {
   # saves or returns geometry rasters (LAS catalog)
   # undo previous selections
-  opt_select(las) <-  "*"
+  opt_select(las) <-  "xyz"
   # delete output path
   opt_output_files(las) <- ""
   # set parameters
@@ -527,7 +527,7 @@ raster_point_density_ctg.LAScluster <- function(las, resolution, output_dir, out
 raster_point_density_ctg.LAScatalog <- function(las, resolution, output_dir, output_name, rescale=TRUE, saving=TRUE) {
   # saves or returns point density raster (LAS catalog)
   # undo previous selections
-  opt_select(las) <-  "*"
+  opt_select(las) <-  "xyz"
   # delete output path
   opt_output_files(las) <- ""
   # set parameters
