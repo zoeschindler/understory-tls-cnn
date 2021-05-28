@@ -129,6 +129,7 @@ normalize_ctg.LAScluster <- function(las) {
   #                   B=as.integer(floor(runif(las@data$X)*255)))
   # delete buffer & return points
   las <- filter_poi(las, buffer == 0)
+  gc()  # make RAM space
   return(las)
 }
 
@@ -136,6 +137,7 @@ normalize_ctg.LAScatalog <- function(las) {
   # returns normalized point cloud (LAS catalog)
   # undo previous selections
   opt_select(las) <-  "*"
+  opt_stop_early(las) <- FALSE  # otherwise it stops when chunks at the border are too small
   # set paramters
   options <- list(
     need_output_file = TRUE,  # output path necessary
@@ -155,9 +157,10 @@ remove_understory_ctg.LAScluster <- function(las, height) {
   if (is.empty(las)) return(NULL)
   # remove everything below certain height
   las <- filter_poi(las, Z <= height)
+  if (is.empty(las)) return(NULL)
   # TODO: try to remove stems & floating stuff?
-  # delete buffer & return points
-  las <- filter_poi(las, buffer == 0)
+  # no need for removing the buffer, if there isn't any
+  gc()  # make RAM space
   return(las)
 }
 
@@ -168,7 +171,7 @@ remove_understory_ctg.LAScatalog <- function(las, height) {
   # set paramters
   options <- list(
     need_output_file = TRUE,  # output path necessary
-    need_buffer = TRUE,  # buffer necessary
+    need_buffer = FALSE,  # buffer not necessary
     automerge = TRUE)  # combine outputs
   # execute & return
   output  <- catalog_apply(las, remove_understory_ctg.LAScluster, height = height, .options = options)
@@ -346,6 +349,7 @@ raster_nDSM_ctg.LAScatalog <- function(las, resolution, output_dir, output_name,
   output  <- catalog_apply(las, raster_nDSM_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
+  crs(output) <- CRS("+init=EPSG:25832")
   # rescale raster
   if (rescale) {
     output <- rescale_raster(output)
@@ -390,6 +394,7 @@ raster_ortho_ctg.LAScatalog <- function(las, resolution, output_dir, output_name
   output  <- catalog_apply(las, raster_ortho_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
+  crs(output) <- CRS("+init=EPSG:25832")
   # rescale all raster bands at once to keep relations
   if (rescale) {
     output <- rescale_raster(output)
@@ -434,6 +439,7 @@ raster_geometry_ctg.LAScatalog <- function(las, resolution, output_dir, output_n
   output  <- catalog_apply(las, raster_geometry_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
+  crs(output) <- CRS("+init=EPSG:25832")
   # loop through bands
   for (idx in 1:dim(output)[3]) {
     raster_band <- output[[idx]]
@@ -487,6 +493,7 @@ raster_reflectance_ctg.LAScatalog <- function(las, resolution, output_dir, outpu
   output  <- catalog_apply(las, raster_reflectance_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
+  crs(output) <- CRS("+init=EPSG:25832")
   # loop through bands
   for (idx in 1:dim(output)[3]) {
     raster_band <- output[[idx]]
@@ -540,6 +547,7 @@ raster_point_density_ctg.LAScatalog <- function(las, resolution, output_dir, out
   output  <- catalog_apply(las, raster_point_density_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
+  crs(output) <- CRS("+init=EPSG:25832")
   # rescale raster
   if (rescale) {
     output <- rescale_raster(output)
@@ -579,10 +587,32 @@ raster_create_all_ctg <- function(ctg, resolution, output_dir, output_name, resc
   # set rescale = TRUE if it should be normalized between 0 and 1
   # set saving = TRUE if raster should be saved, set saving = FALSE to return raster as object
   raster_nDSM_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/nDSM"), output_name, rescale, saving)
+  warnings()  # works
+  gc()
   raster_ortho_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/ortho"), output_name, rescale, saving)
+  warnings()  # invalid points with "return number" > "number of returns"
+  gc()
   raster_geometry_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/geometry"), output_name, rescale, saving)
+  warnings()  # gecrasht, zu wenig RAM --> Dateien zwischenspeichern?
+  gc()
   raster_reflectance_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/reflectance"), output_name, rescale, saving)
+  warnings()
+  # In min(x) : kein nicht-fehlendes Argument für min; gebe Inf zurück
+  # In max(x) : kein nicht-fehlendes Argument für max; gebe -Inf zurück
+  # In min(x@data@values, na.rm = TRUE) : kein nicht-fehlendes Argument für min; gebe Inf zurück
+  # In max(x@data@values, na.rm = TRUE) : kein nicht-fehlendes Argument für max; gebe -Inf zurück
+  # In min(x, na.rm = TRUE) :   kein nicht-fehlendes Argument für min; gebe Inf zurück
+  # max(x, na.rm = TRUE) :     kein nicht-fehlendes Argument für max; gebe -Inf zurück
+  # In min(x) : kein nicht-fehlendes Argument für min; gebe Inf zurück
+  # In max(x) : kein nicht-fehlendes Argument für max; gebe -Inf zurück
+  # In min(x@data@values, na.rm = TRUE) : kein nicht-fehlendes Argument für min; gebe Inf zurück
+  # In max(x@data@values, na.rm = TRUE) : kein nicht-fehlendes Argument für max; gebe -Inf zurück
+  # The list returned by 'catalog_apply' contains heterogeneous objects. Merging is impossible. A list has been returned.
+  # --> ?????
+  gc()
   raster_point_density_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/point_density"), output_name, rescale, saving)
+  warnings()  # works
+  gc()
   print("done!")
 }
 
