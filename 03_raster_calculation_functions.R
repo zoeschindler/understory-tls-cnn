@@ -349,7 +349,6 @@ raster_nDSM_ctg.LAScatalog <- function(las, resolution, output_dir, output_name,
   output  <- catalog_apply(las, raster_nDSM_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
-  crs(output) <- CRS("+init=EPSG:25832")
   # rescale raster
   if (rescale) {
     output <- rescale_raster(output)
@@ -394,7 +393,6 @@ raster_ortho_ctg.LAScatalog <- function(las, resolution, output_dir, output_name
   output  <- catalog_apply(las, raster_ortho_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
-  crs(output) <- CRS("+init=EPSG:25832")
   # rescale all raster bands at once to keep relations
   if (rescale) {
     output <- rescale_raster(output)
@@ -439,7 +437,6 @@ raster_geometry_ctg.LAScatalog <- function(las, resolution, output_dir, output_n
   output  <- catalog_apply(las, raster_geometry_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
-  crs(output) <- CRS("+init=EPSG:25832")
   # loop through bands
   for (idx in 1:dim(output)[3]) {
     raster_band <- output[[idx]]
@@ -493,7 +490,6 @@ raster_reflectance_ctg.LAScatalog <- function(las, resolution, output_dir, outpu
   output  <- catalog_apply(las, raster_reflectance_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
-  crs(output) <- CRS("+init=EPSG:25832")
   # loop through bands
   for (idx in 1:dim(output)[3]) {
     raster_band <- output[[idx]]
@@ -547,7 +543,6 @@ raster_point_density_ctg.LAScatalog <- function(las, resolution, output_dir, out
   output  <- catalog_apply(las, raster_point_density_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
-  crs(output) <- CRS("+init=EPSG:25832")
   # rescale raster
   if (rescale) {
     output <- rescale_raster(output)
