@@ -90,10 +90,9 @@ metric_reflectance <- function(r) {
   # necessary for raster_intensity
   # returns statistics of reflectances
   reflectances = list(
-    mean = mean(r),
-    median = median(r),
-    sd = sd(r),
-    max = max(r)
+    mean = ifelse(length(r)==0, NA, mean(r)),
+    sd = ifelse(length(r)==0, NA, sd(r)),
+    max = ifelse(length(r)==0, NA, max(r))
   )
   return(reflectances)
 }
@@ -257,13 +256,13 @@ raster_geometry <- function(point_cloud, resolution, output_dir, output_name, re
   }
   if (!saving) {
     # return raster stack
-    return(stack(raster_bands))
+    return(brick(stack(raster_bands)))
   }
 }
 
 ################################################################################
 
-raster_reflectance <- function(point_cloud, resolution, output_dir, output_name, rescale=TRUE, saving=TRUE){
+raster_reflectance <- function(point_cloud, resolution, output_dir, output_name, rescale=TRUE, saving=TRUE) {
   # saves or returns intensity rasters
   check_create_dir(output_dir)
   print("... creating reflectance rasters")
@@ -291,7 +290,7 @@ raster_reflectance <- function(point_cloud, resolution, output_dir, output_name,
   }
   if (!saving) {
     # return raster stack
-    return(stack(raster_bands))
+    return(brick(stack(raster_bands)))
   }
 }
 
@@ -321,15 +320,15 @@ raster_point_density <- function(point_cloud, resolution, output_dir, output_nam
 # SINGLE RASTER FUNCTIONS - LAS CATALOGS
 ################################################################################
 
-raster_nDSM_ctg.LAScluster <- function(las, resolution, output_dir, output_name, rescale, saving) {
+raster_nDSM_ctg.LAScluster <- function(chunk, resolution, output_dir, output_name, rescale, saving) {
   # saves or returns nDSM raster (LAS file)
   # load the data
-  las <- readLAS(las)
+  las <- readLAS(chunk)
   if (is.empty(las)) return(NULL)
   # create nDSM raster
   nDSM <- raster_nDSM(las, resolution, output_dir, output_name, rescale, saving)
   # delete buffer & return points
-  nDSM <- crop(nDSM, extent(las))
+  nDSM <- crop(nDSM, extent(chunk))
   return(nDSM)
 }
 
@@ -365,15 +364,15 @@ raster_nDSM_ctg.LAScatalog <- function(las, resolution, output_dir, output_name,
 
 ################################################################################
 
-raster_ortho_ctg.LAScluster <- function(las, resolution, output_dir, output_name, rescale, saving) {
+raster_ortho_ctg.LAScluster <- function(chunk, resolution, output_dir, output_name, rescale, saving) {
   # saves or returns orthomosaic raster (LAS file)
   # load the data
-  las <- readLAS(las)
+  las <- readLAS(chunk)
   if (is.empty(las)) return(NULL)
   # create ortho raster
   ortho <- raster_ortho(las, resolution, output_dir, output_name, rescale, saving)
   # delete buffer & return points
-  ortho <- crop(ortho, extent(las))
+  ortho <- crop(ortho, extent(chunk))
   return(ortho)
 }
 
@@ -409,15 +408,17 @@ raster_ortho_ctg.LAScatalog <- function(las, resolution, output_dir, output_name
 
 ################################################################################
 
-raster_geometry_ctg.LAScluster <- function(las, resolution, output_dir, output_name, rescale, saving) {
+raster_geometry_ctg.LAScluster <- function(chunk, resolution, output_dir, output_name, rescale, saving) {
   # saves or returns geometry raster stack (LAS file)
   # load the data
-  las <- readLAS(las)
+  las <- readLAS(chunk)
   if (is.empty(las)) return(NULL)
   # create geometry rasters
   geometries <- raster_geometry(las, resolution, output_dir, output_name, rescale, saving)
-  # delete buffer & return points
-  geometries <- crop(geometries, extent(las))
+  # delete buffer
+  geometries <- crop(geometries, extent(chunk))
+  # clear memory
+  gc()
   return(geometries)
 }
 
@@ -425,22 +426,33 @@ raster_geometry_ctg.LAScatalog <- function(las, resolution, output_dir, output_n
   # saves or returns geometry rasters (LAS catalog)
   # undo previous selections
   opt_select(las) <-  "xyz"
-  # delete output path
-  opt_output_files(las) <- ""
+  # allow overwriting
+  las@output_options$drivers$Raster$param$overwrite <- TRUE
+  # set temporary output path
+  temp_dir <- paste0(output_dir, "/temp")
+  check_create_dir(temp_dir)
+  opt_output_files(las) <- paste0(temp_dir, "/temp_geometry_{ID}")
   # set parameters
   options <- list(
-    need_output_file = FALSE,  # output path not necessary
+    need_output_file = TRUE,  # output path not necessary
     need_buffer = TRUE,  # buffer necessary
-    automerge = TRUE,  # combine outputs
+    automerge = FALSE,  # combine outputs
     raster_alignment = resolution)  # align chunks & rasters
   # calculate & merge raster
   output  <- catalog_apply(las, raster_geometry_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
+  print("... tiles saved")
+  # load & merge tiles
+  raster_list <- lapply(output, stack)
+  raster_list$filename <- paste0(temp_dir, "/geometry_all_", output_name, "_", resolution*100, "cm.tif")
+  merged_raster <- do.call(merge, raster_list)
+  # get layer names
+  names <- names(metric_geometry(0,0,0,0,0))
   # loop through bands
-  for (idx in 1:dim(output)[3]) {
-    raster_band <- output[[idx]]
-    type <- names(raster_band)
+  for (idx in 1:dim(merged_raster)[3]) {
+    raster_band <- merged_raster[[idx]]
+    type <- names[idx]
     # rescale band
     if (rescale) {
       raster_band <- rescale_raster(raster_band)
@@ -451,26 +463,28 @@ raster_geometry_ctg.LAScatalog <- function(las, resolution, output_dir, output_n
                                       resolution*100, "cm.tif"), overwrite = TRUE)
     } else {
       # replace with rescaled band
-      output[[idx]] <- raster_band
+      merged_raster[[idx]] <- raster_band
     }
   }
   # return bands stacked
   if (!saving) {
-    return(output)
+    return(merged_raster)
   }
 }
 
 ################################################################################
 
-raster_reflectance_ctg.LAScluster <- function(las, resolution, output_dir, output_name, rescale, saving) {
+raster_reflectance_ctg.LAScluster <- function(chunk, resolution, output_dir, output_name, rescale, saving) {
   # saves or returns reflectance raster stack (LAS file)
   # load the data
-  las <- readLAS(las)
+  las <- readLAS(chunk)
   if (is.empty(las)) return(NULL)
   # create reflectance raster
   reflectance <- raster_reflectance(las, resolution, output_dir, output_name, rescale, saving)
-  # delete buffer & return points
-  reflectance <- crop(reflectance, extent(las))
+  # delete buffer
+  reflectance <- crop(reflectance, extent(chunk))
+  # clear memory
+  gc()
   return(reflectance)
 }
 
@@ -478,22 +492,33 @@ raster_reflectance_ctg.LAScatalog <- function(las, resolution, output_dir, outpu
   # saves or returns geometry rasters (LAS catalog)
   # undo previous selections
   opt_select(las) <-  "*"
-  # delete output path
-  opt_output_files(las) <- ""
+  # allow overwriting
+  las@output_options$drivers$Raster$param$overwrite <- TRUE
+  # set temporary output path
+  temp_dir <- paste0(output_dir, "/temp")
+  check_create_dir(temp_dir)
+  opt_output_files(las) <- paste0(temp_dir, "/temp_reflectance_{ID}")
   # set parameters
   options <- list(
-    need_output_file = FALSE,  # output path not necessary
+    need_output_file = TRUE,  # output path not necessary
     need_buffer = TRUE,  # buffer necessary
-    automerge = TRUE,  # combine outputs
+    automerge = FALSE,  # combine outputs
     raster_alignment = resolution)  # align chunks & rasters
   # calculate & merge raster
   output  <- catalog_apply(las, raster_reflectance_ctg.LAScluster, resolution = resolution,
                            output_dir = output_dir, output_name = output_name,
                            rescale = FALSE, saving = FALSE, .options = options)
+  print("... tiles saved")
+  # load & merge tiles
+  raster_list <- lapply(output, stack)
+  raster_list$filename <- paste0(temp_dir, "/reflectance_all_", output_name, "_", resolution*100, "cm.tif")
+  merged_raster <- do.call(merge, raster_list)
+  # get layer names
+  names <- names(metric_reflectance(0))
   # loop through bands
-  for (idx in 1:dim(output)[3]) {
-    raster_band <- output[[idx]]
-    type <- names(raster_band)
+  for (idx in 1:dim(merged_raster)[3]) {
+    raster_band <- merged_raster[[idx]]
+    type <- names[idx]
     # rescale band
     if (rescale) {
       raster_band <- rescale_raster(raster_band)
@@ -501,29 +526,29 @@ raster_reflectance_ctg.LAScatalog <- function(las, resolution, output_dir, outpu
     if (saving) {
       # save each band separately
       writeRaster(raster_band, paste0(output_dir, "/reflectance_", type, "_",
-                                    output_name, "_", resolution*100, "cm.tif"), overwrite = TRUE)
+                                      output_name, "_", resolution*100, "cm.tif"), overwrite = TRUE)
     } else {
       # replace with rescaled band
-      output[[idx]] <- raster_band
+      merged_raster[[idx]] <- raster_band
     }
   }
   # return bands stacked
   if (!saving) {
-    return(output)
+    return(merged_raster)
   }
 }
 
 ################################################################################
 
-raster_point_density_ctg.LAScluster <- function(las, resolution, output_dir, output_name, rescale, saving) {
+raster_point_density_ctg.LAScluster <- function(chunk, resolution, output_dir, output_name, rescale, saving) {
   # saves or returns point density raster (LAS file)
   # load the data
-  las <- readLAS(las)
+  las <- readLAS(chunk)
   if (is.empty(las)) return(NULL)
   # create point_density raster
   point_density <- raster_point_density(las, resolution, output_dir, output_name, rescale, saving)
   # delete buffer & return points
-  point_density <- crop(point_density, extent(las))
+  point_density <- crop(point_density, extent(chunk))
   return(point_density)
 }
 
@@ -582,31 +607,14 @@ raster_create_all_ctg <- function(ctg, resolution, output_dir, output_name, resc
   # set rescale = TRUE if it should be normalized between 0 and 1
   # set saving = TRUE if raster should be saved, set saving = FALSE to return raster as object
   raster_nDSM_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/nDSM"), output_name, rescale, saving)
-  warnings()  # works
   gc()
   raster_ortho_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/ortho"), output_name, rescale, saving)
-  warnings()  # invalid points with "return number" > "number of returns"
-  gc()
-  raster_geometry_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/geometry"), output_name, rescale, saving)
-  warnings()  # gecrasht, zu wenig RAM --> Dateien zwischenspeichern?
-  gc()
-  raster_reflectance_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/reflectance"), output_name, rescale, saving)
-  warnings()
-  # In min(x) : kein nicht-fehlendes Argument für min; gebe Inf zurück
-  # In max(x) : kein nicht-fehlendes Argument für max; gebe -Inf zurück
-  # In min(x@data@values, na.rm = TRUE) : kein nicht-fehlendes Argument für min; gebe Inf zurück
-  # In max(x@data@values, na.rm = TRUE) : kein nicht-fehlendes Argument für max; gebe -Inf zurück
-  # In min(x, na.rm = TRUE) :   kein nicht-fehlendes Argument für min; gebe Inf zurück
-  # max(x, na.rm = TRUE) :     kein nicht-fehlendes Argument für max; gebe -Inf zurück
-  # In min(x) : kein nicht-fehlendes Argument für min; gebe Inf zurück
-  # In max(x) : kein nicht-fehlendes Argument für max; gebe -Inf zurück
-  # In min(x@data@values, na.rm = TRUE) : kein nicht-fehlendes Argument für min; gebe Inf zurück
-  # In max(x@data@values, na.rm = TRUE) : kein nicht-fehlendes Argument für max; gebe -Inf zurück
-  # The list returned by 'catalog_apply' contains heterogeneous objects. Merging is impossible. A list has been returned.
-  # --> ?????
   gc()
   raster_point_density_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/point_density"), output_name, rescale, saving)
-  warnings()  # works
+  gc()
+  raster_reflectance_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/reflectance"), output_name, rescale, saving)
+  gc()
+  raster_geometry_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/geometry"), output_name, rescale, saving)
   gc()
   print("done!")
 }

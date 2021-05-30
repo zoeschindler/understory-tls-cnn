@@ -105,10 +105,6 @@ ctg_understory <- readTLSLAScatalog(paste0(dirname(path_points), "/03_understory
 # set options
 opt_chunk_buffer(ctg_understory) <- buffer_size
 opt_chunk_size(ctg_understory) <- chunk_size
-#opt_output_files(ctg_understory) <- ""
-check_create_dir(paste0(path_rasters, "/temp"))
-opt_output_files(ctg_understory) <- paste0(path_rasters, "/temp/temp_{ID}")
-# muss noch geändert werden, wenn das für alle Erstellungen genutzt werden soll, dann in Funktionen selber!
 
 # execute - input for CNN
 raster_create_all_ctg(ctg_understory, raster_resolution, path_rasters, points_name, rescale=FALSE)
@@ -117,15 +113,9 @@ warnings()
 
 ###
 # TODO: testing, delete later
-# testing single functions
-
 raster_reflectance_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/reflectance"),
-                                  points_name, rescale=FALSE)
-warnings()  # TODO: does not work
-
-raster_geometry_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/reflectance"),
                                points_name, rescale=FALSE)
-warnings()  # TODO: does not work
+warnings()
 ###
 
 # not rescaled, so I can normalize later, per area or per everything
