@@ -8,11 +8,11 @@
 library(lidR)  # for point clouds, also loads sp & raster
 
 # load functions
-source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/03_raster_calculation_functions.R")
+source("D:/Masterarbeit_Zoe/5_Analyse/03_raster_calculation_functions.R")
 
 # set paths
-path_points   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/areaXY/testing.las"  # input
-path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # output
+path_points   <- "D:/Masterarbeit_Zoe/4_Daten/points/areaXY/testing.las"  # input
+path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"  # output
 check_create_dir(path_rasters)
 
 # set variables

@@ -9,12 +9,12 @@ library(lidR)
 library(sf)
 
 # set paths
-path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # input
-path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_checked.kml"  # input
-path_clips <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"  # output
+path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"  # input
+path_vegetation <- "D:/Masterarbeit_Zoe/4_Daten/vegetation/Export_ODK_clean_checked.kml"  # input
+path_clips <- "D:/Masterarbeit_Zoe/4_Daten/clips"  # output
 path_nDSM <- paste0(path_rasters, "/nDSM_unscaled")  # input
-path_points_understory <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/actual_data/03_understory"  # input
-path_points_normalized <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/actual_data/02_normalized"  # input
+path_points_understory <- "D:/Masterarbeit_Zoe/4_Daten/points/actual_data/03_understory"  # input
+path_points_normalized <- "D:/Masterarbeit_Zoe/4_Daten/points/actual_data/02_normalized"  # input
 
 # set parameter
 tile_size <- 0.5

@@ -6,16 +6,19 @@
 
 # load packages
 library(lidR)  # for point clouds, also loads sp & raster
+library(rlas)
+library(sf)
+library(future)
 
 # load functions
-source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/03_raster_calculation_functions.R")
+source("D:/Masterarbeit_Zoe/5_Analyse/03_raster_calculation_functions.R")
 
 # set paths
-path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # output
+path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"  # output
 check_create_dir(path_rasters)
-path_points <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/actual_data/OT01cm.laz"  # input
+path_points <- "D:/Masterarbeit_Zoe/4_Daten/points/actual_data/day4.laz"  # input
 points_name <- substr(basename(path_points), 1, nchar(basename(path_points))-4)  # for the naming pattern
-
+path_area <- "D:/Masterarbeit_Zoe/4_Daten/sites/convex/area_polygons.shp"
 # set chunk parameters
 chunk_size <- 15  # my RAM hates everything above, so I hate everything above
 buffer_size <- 1  # to avoid edge effects & not having enough points for interpolation
@@ -23,11 +26,71 @@ raster_resolution <- 0.01
 
 # load data
 ctg <- readTLSLAScatalog(path_points)
-lidR:::catalog_laxindex(ctg)  # lax file
+crs(ctg) <- CRS("+init=EPSG:25832")
+lidR:::catalog_laxindex(ctg)  # lax file, does not work on workstation, idk why
 plot(ctg, chunk=TRUE)
 
+# TODO: data day 1 to 3: no / wrong coordinate system?
+
 ################################################################################
-# TILING HUGE CLOUD
+# CLIPPING CLOUDS TO AOI
+################################################################################
+
+area_retile_ctg.LAScluster <- function(chunk, area) {
+  # TODO
+  # load the data
+  las <- readLAS(chunk)
+  if (is.empty(las)) return(NULL)
+  # remove everything below certain height
+  las <- clip_roi(las, area)
+  if (is.empty(las)) return(NULL)
+  # no need for removing the buffer, if there isn't any
+  gc()  # make RAM space
+  return(las)
+}
+
+area_retile_ctg.LAScatalog <- function(las, area) {
+  # TODO
+  # undo previous selections
+  opt_select(las) <-  "*"
+  # set paramters
+  options <- list(
+    need_output_file = TRUE,  # output path necessary
+    need_buffer = FALSE,  # buffer not necessary
+    automerge = TRUE)  # combine outputs
+  # execute & return
+  output  <- catalog_apply(las, area_retile_ctg.LAScluster, area = area, .options = options)
+  return(output)
+}
+
+################################################################################
+
+# set options
+check_create_dir(paste0(dirname(path_points), "/01_tiled"))
+opt_chunk_buffer(ctg) <- 0  # otherwise chunks are saved with buffer
+opt_chunk_size(ctg) <- chunk_size
+plot(ctg, chunk=TRUE)
+
+# loop through site shapefile
+area_polys <- st_read(path_area)
+crs(area_polys) <- CRS("+init=EPSG:25832")
+#for (idx in 1:nrow(area_polys)) {
+# day 1) 7, 8
+# day 2) 1
+# day 3) 2,3
+# day 4) 4,5,6
+idx=4
+  area <- area_polys[idx,]
+  area_id <- idx
+  # set output path
+  opt_output_files(ctg) <- paste0(dirname(path_points), "/01_tiled/area_", area_id, "_tiled_{ID}")
+  # clip points to area
+  plan(multisession, workers = 6L)
+  ctg_area <- area_retile_ctg.LAScatalog(ctg, area) # ???
+#}
+
+################################################################################
+# TILING HUGE CLOUDS
 ################################################################################
 
 # set options
@@ -109,14 +172,8 @@ opt_chunk_size(ctg_understory) <- chunk_size
 # execute - input for CNN
 raster_create_all_ctg(ctg_understory, raster_resolution, path_rasters, points_name, rescale=FALSE)
 warnings()
-# TODO: kills itself because of RAM in geometry feature calculation
 
-###
-# TODO: testing, delete later
-raster_reflectance_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/reflectance"),
-                               points_name, rescale=FALSE)
-warnings()
-###
+# TODO: merging the raster takes 3x as the raster calcualtion
 
 # not rescaled, so I can normalize later, per area or per everything
 # will be normalized & used as an input for the CNN
@@ -145,8 +202,6 @@ warnings()
 # TODO
 # need clipped rasters
 
-# based on rasters of all areas combined?
-
-# based on each area at once?
+# based on rasters of all areas combined
 
 ################################################################################

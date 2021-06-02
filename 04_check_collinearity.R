@@ -7,13 +7,15 @@
 # for this part, all rasters must be computed and normalized
 # selecting the rasters must be done manually
 
+# TODO: actually execute this for the right datasets!
+
 # load packages
 library(raster)  # for rasters
 library(sp)  # for spatial objects
 library(Hmisc)  # for cluster analysis
 
 # path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters_copy"  # multiple areas
-path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # single area
+path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"  # single area
 
 # get all relevant raster paths
 raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE)
@@ -131,6 +133,6 @@ biplot(pca_remains, cex=c(0.5,1))#, xlim=c(-0.05, 0.05), ylim=c(-0.05, 0.05))
 
 ################################################################################
 
-# save the final rasters in combinations the CNN should be fed with?
+# TODO: save the final rasters in combinations the CNN should be fed with?
 
 ################################################################################

@@ -29,7 +29,7 @@ check_create_dir <- function(path) {
 
 # fast eigenvalue calculation
 # source: https://gis.stackexchange.com/questions/395916/get-eigenvalues-of-large-point-cloud-using-lidr
-Rcpp::sourceCpp("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/eigen_decomposition.cpp")
+Rcpp::sourceCpp("D:/Masterarbeit_Zoe/5_Analyse/eigen_decomposition.cpp")
 
 ################################################################################
 
@@ -50,7 +50,7 @@ metric_ortho <- function(r, g, b, z) {
 add_geometry <- function(las) {
   # necessary for raster_geometry
   # returns geometric features based on eigenvalues
-  eigen <- eigen_decomposition(las, 20, 6)  # 20 neighbours, 6 cores
+  eigen <- eigen_decomposition(las, 20, 16)  # 20 neighbours, 6 cores
   las <- add_lasattribute(las, eigen[,3]/(eigen[,1] + eigen[,2] + eigen[,3]), "curvature", "curvature")
   las <- add_lasattribute(las, (eigen[,1] - eigen[,2])/eigen[,1], "linearity", "linearity")
   las <- add_lasattribute(las, (eigen[,2] - eigen[,3])/eigen[,1], "planarity", "planarity")
