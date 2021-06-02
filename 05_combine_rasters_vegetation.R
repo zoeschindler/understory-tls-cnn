@@ -13,9 +13,11 @@ path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters"  # input
 path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_checked.kml"  # input
 path_clips <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"  # output
 path_nDSM <- paste0(path_rasters, "/nDSM_unscaled")  # input
+path_points_understory <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/actual_data/03_understory"  # input
+path_points_normalized <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/points/actual_data/02_normalized"  # input
 
 # set parameter
-tile_size <- 0.64
+tile_size <- 0.5
 
 ################################################################################
 # HELPER FUNCTIONS
@@ -25,10 +27,7 @@ check_create_dir <- function(path) {
   # checks if directory exists
   # if not, creates it
   if (!dir.exists(path)) {
-    print("... creating new folder")
     dir.create(path)
-  } else {
-    print("... using existing folder")
   }
 }
 
@@ -36,13 +35,15 @@ check_create_dir <- function(path) {
 # FILTER MIDSTORY PLOTS
 ################################################################################
 
-filter_midstory <- function(nDSM_unscaled_dir, plot_path, tile_size) {
-  # check if nDSM values are above 2m
+# this section would be a lot shorter, if I would habe measured the vegetation
+# height during field work & would have excluded vegetation > 2m height
+
+filter_midstory_nDSM <- function(plots, nDSM_unscaled_dir, tile_size) {
+  # check if maximum nDSM values are above 1,9m
+  # otherwise: delete
   print("... removing midstory points")
   # empty list for storing "bad" points
-  midstory_plots <- c()
-  # read as kml + transform CRS
-  plots <- st_transform(st_read(plot_path), 25832)
+  remove_plots <- c()
   # get all rasters within nDSM_dir
   nDSM_list <- list.files(nDSM_unscaled_dir, pattern=".tif", recursive=TRUE)
   # calculate edge length (divisible by two)
@@ -50,7 +51,7 @@ filter_midstory <- function(nDSM_unscaled_dir, plot_path, tile_size) {
   # loop through nDSMs
   for (nDSM_path in nDSM_list) {
     # load raster
-    nDSM <- raster(paste0(nDSM_unscaled_dir,"/",nDSM_path))
+    nDSM <- raster(paste0(nDSM_unscaled_dir, "/", nDSM_path))
     crs(nDSM) <- CRS("+init=EPSG:25832")
     # get points within raster extent
     subset <- st_intersection(plots, st_set_crs(st_as_sf(as(extent(nDSM), "SpatialPolygons")), st_crs(plots)))
@@ -60,19 +61,125 @@ filter_midstory <- function(nDSM_unscaled_dir, plot_path, tile_size) {
       # clip raster with point + edge
       center_x <- round(st_coordinates(plot)[,1], 2) # round on cm
       center_y <- round(st_coordinates(plot)[,2], 2) # round on cm
-      rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge, ymin=center_y-edge, ymax=center_y+edge))
+      rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge,
+                            ymin=center_y-edge, ymax=center_y+edge))
       clip <- crop(nDSM, rectangle)
-      # check height
-      if ((quantile(as.vector(clip), 0.95, na.rm=T) >= 2) &  !all(is.na(as.vector(clip)))) {
-        midstory_plots <- append(midstory_plots, plot$Description)
+      # check height & cover
+      if ((max(as.vector(clip), na.rm=T) >= 1.9) & !all(is.na(as.vector(clip)))) {  # keeps empty clips
+        # TODO: guter Punkt um festzulegen, dass gewisser Pixel-Bedeckungsgrad vorhanden sein muss?
+        remove_plots <- rbind(remove_plots, plot)
       }
     }
   }
   # delete midstory points
-  filtered_plots <- plots[!plots$Description %in% midstory_plots,]
+  keep_plots <- plots[!(plots$Description %in% remove_plots$Description),]
   # save filtered points
-  st_write(filtered_plots, paste0(substr(plot_path, 1, nchar(plot_path)-4), "_no_midstory.kml"), delete_layer = T)
-  return(paste0(substr(plot_path, 1, nchar(plot_path)-4), "_no_midstory.kml"))
+  return(list(keep = keep_plots, remove = remove_plots))
+}
+
+################################################################################
+
+filter_midstory_points <- function(plots, point_cloud_dir, tile_size) {
+  # check if there are empty vertical bins
+  # (assumption: flying branches from overstory lead to empty vertical bins)
+  # otherwise: delete
+  print("... removing midstory points")
+  # empty list for storing "bad" points
+  remove_plots <- c()
+  # load point clouds as LAScatalog
+  las <- readTLSLAScatalog(point_cloud_dir)  # from all areas combined
+  # calculate edge length (divisible by two)
+  edge <- ((tile_size*100)%/%2)/100
+  # loop through plots
+  for (idx in 1:nrow(plots)) {
+    plot <- plots[idx,]
+    # clip point cloud with point + edge
+    center_x <- round(st_coordinates(plot)[,1], 2) # round on cm
+    center_y <- round(st_coordinates(plot)[,2], 2) # round on cm
+    rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge,
+                          ymin=center_y-edge, ymax=center_y+edge))
+    clip <- clip_roi(las, rectangle)
+    # bin the points, 10cm vertical bins until 2m height
+    bin_boolean <- c()
+    for (i in 1:20) {
+      upper_bound <- (i * 10)/100
+      lower_bound <- (upper_bound*100 - 10)/100
+      bin <- 0 < length(filter_poi(clip, Z >= lower_bound & Z < upper_bound)@data$X)  # TRUE: points, FALSE: no points
+      bin_boolean <- c(bin_boolean, bin)
+    }
+    # check if there are empty bins between
+    if (mean(bin_boolean) == 1) {
+      remove_plots <- rbind(remove_plots, plot)
+    }
+  }
+  # delete midstory points
+  keep_plots <- plots[!(plots$Description %in% remove_plots$Description),]
+  # save filtered points
+  return(list(keep = keep_plots, remove = remove_plots))
+}
+
+################################################################################
+
+filter_midstory_visually <- function(plots, point_cloud_dir, tile_size) {
+  # check visually & manually if plot should be kept
+  print("... removing midstory points")
+  # empty list for storing "bad" / "good" points
+  remove_plots <- c()
+  keep_plots <- c()
+  # load point clouds as LAScatalog
+  las <- readTLSLAScatalog(point_cloud_dir)  # from all areas combined
+  # calculate edge length (divisible by two)
+  edge <- ((tile_size*100)%/%2)/100
+  # loop through plots
+  for (idx in 1:nrow(plots)) {
+    plot <- plots[idx,]
+    # clip point cloud with point + edge
+    center_x <- round(st_coordinates(plot)[,1], 2) # round on cm
+    center_y <- round(st_coordinates(plot)[,2], 2) # round on cm
+    rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge,
+                          ymin=center_y-edge, ymax=center_y+edge))
+    clip <- clip_roi(las, rectangle)
+    clip <- filter_poi(clip, Z < 3)
+    # categorize points into 2m or higher
+    below_above <- clip@data$Z < 2
+    clip <- add_attribute(clip, below_above, "below_above")
+    plot(clip, color="below_above")
+    print(paste0("Label: ", plot$Name))
+    user_input <- readline(prompt="Keep this point? Enter y or n :  ")
+    # check if the user wants the point removed
+    if (user_input == "n") {
+      remove_plots <- rbind(remove_plots, plot)
+    } else if (user_input == "y") {
+      keep_plots <- rbind(keep_plots, plot)
+    } else if (user_input == "exit") {
+      print("... mission aborted")
+      return(0)
+    }
+  }
+  # save filtered points
+  return(list(keep = keep_plots, remove = remove_plots))
+}
+
+################################################################################
+
+filter_midstory_all <- function(plot_path, nDSM_unscaled_dir, point_cloud_dir_understory,
+                                point_cloud_dir_normalized, tile_size) {
+  # execute all filtering functions together
+  # load plots
+  plots <- st_transform(st_read(plot_path), 25832)
+  # filter with nDSM
+  out_ndsm <- filter_midstory_nDSM(plots, nDSM_unscaled_dir, tile_size)
+  plots <- out_ndsm[[2]]
+  # filter with vertical bins
+  out_points <- filter_midstory_points(plots, point_cloud_dir_understory, tile_size)
+  plots <- out_points[[2]]
+  # filter visually & manually
+  out_visual <- filter_midstory_visually(plots, point_cloud_dir_normalized, tile_size)
+  # merge all plots to be kept
+  keep_plots <- rbind(out_ndsm[[1]], out_points[[1]], out_visual[[1]])
+  # save & return path to filtered kml
+  st_write(keep_plots, paste0(substr(plot_path, 1, nchar(plot_path)-4), "_filtered.kml"), delete_layer = T)
+  return(paste0(substr(plot_path, 1, nchar(plot_path)-4), "_filtered.kml"))
 }
 
 ################################################################################
@@ -80,13 +187,14 @@ filter_midstory <- function(nDSM_unscaled_dir, plot_path, tile_size) {
 ################################################################################
 
 filter_overlaps <- function(plot_path, tile_size) {
-  # check if nDSM values are above 2m
+  # check if vegetation tiles are not overlapping
+  # otherwise: delete
   print("... removing overlapping points")
   # read as kml + transform CRS
   plots <- st_transform(st_read(plot_path), 25832)
   # calculate edge length (divisible by two)
   edge <- ((tile_size*100)%/%2)/100
-  # convert points to polygons with according tilesize
+  # convert points to polygons with according tile size
   center_x <- round(st_coordinates(plots)[,1], 2) # round on cm
   center_y <- round(st_coordinates(plots)[,2], 2) # round on cm
   polygon_list <- c()
@@ -113,12 +221,13 @@ filter_overlaps <- function(plot_path, tile_size) {
       break
     }
     # otherwise, randomly remove one of the overlapping polygons
-    print(paste0("number of overlapping poygons: ", length(unique(as.factor(overlapping_indices)))))
     polygon_idx <- overlapping_indices[floor(runif(1, min = 1, max=length(overlapping_indices)+1))]
     polygon_list <- polygon_list[-polygon_idx,]
   }
   # keep plots which have same geometry as filtered_points
   new_plots <- plots[plots$Description %in% polygon_list$Description,]
+  # give feedback on how much was removed:
+  print(paste0("number of removed plots: ", nrow(plots)-nrow(new_plots)))
   # save filtered points
   st_write(new_plots, paste0(substr(plot_path, 1, nchar(plot_path)-4), "_no_overlap.kml"), delete_layer = T)
   return(paste0(substr(plot_path, 1, nchar(plot_path)-4), "_no_overlap.kml"))
@@ -128,7 +237,7 @@ filter_overlaps <- function(plot_path, tile_size) {
 # RASTER TILES
 ################################################################################
 
-raster_clip_all <- function(raster_dir, plot_path, tile_size, output_dir) {
+raster_clip_all <- function(raster_dir, plot_path, output_dir, tile_size) {
   # clips all rasters to small areas around the vegetation plots
   # creates folder structures similar to the input rasters
   check_create_dir(output_dir)
@@ -176,8 +285,13 @@ raster_clip_all <- function(raster_dir, plot_path, tile_size, output_dir) {
 # EXECUTION
 ################################################################################
 
-path_vegetation <- filter_midstory(path_nDSM, path_vegetation, tile_size)
-path_vegetation <- filter_overlaps(path_vegetation, tile_size)
-raster_clip_all(path_rasters, path_vegetation, tile_size, path_clips)
+# TODO: eventuell markieren, dass überlappende immer nur ins gleiche Datenset dürfen,
+#       oder nur raus werfen ab gewissen overlap Prozent
+#       -> 8 plots would be removed due to overlap -> okay
+
+new_path_vegetation <- filter_midstory_all(path_vegetation, path_nDSM, path_points_understory,
+                                           path_points_normalized, tile_size)
+newer_path_vegetation <- filter_overlaps(new_path_vegetation, tile_size)
+raster_clip_all(path_rasters, newer_path_vegetation, path_clips, tile_size)
 
 ################################################################################
