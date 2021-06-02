@@ -4,14 +4,17 @@
 ################################################################################
 ################################################################################
 
-## parse geojson
-require(jsonlite)
-require(dplyr)
-require(sf)
+# load packages
+library(jsonlite)
+library(dplyr)
+library(sf)
+library(sp)
 library(jpeg)
+library(raster)
 
 # set path
-home_dir <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation"
+area_dir <- "P:/Julian/Zoe/4_Daten/sites/convex"  # output
+home_dir <- "P:/Julian/Zoe/4_Daten/vegetation"  # input & output
 setwd(home_dir)
 
 # clean the data?
@@ -20,6 +23,21 @@ if (clean) {
   file_name <- "Export_ODK_clean"
 } else {
   file_name <- "Export_ODK_raw"
+}
+
+################################################################################
+# HELPER FUNCTIONS
+################################################################################
+
+check_create_dir <- function(path) {
+  # checks if directory exists
+  # if not, creates it
+  if (!dir.exists(path)) {
+    print("... creating new folder")
+    dir.create(path)
+  } else {
+    print("... using existing folder")
+  }
 }
 
 ################################################################################
@@ -81,6 +99,7 @@ if (clean) {
   final <- final[substr(final$veg_type,1,8) != "Endpunkt",] # end point
   final <- final[final$veg_type != "Schreibtisch",] # test point
   final <- final[final$veg_type != "Stechpalme",] # only once
+  final <- final[final$veg_ID != 940,]  # way to far away
   # renaming points
   final$veg_type[final$veg_type=="fir"] <- "spruce" # too dumb for fir / spruce
   final$veg_type[final$veg_type=="sprouce"] <- "spruce" # typo
@@ -93,7 +112,35 @@ if (clean) {
   summary(as.factor(final$veg_type))
 }
 
+################################################################################
+# CREATE SITE SHAPES
+################################################################################
 
+if (clean) {  # otherwise, really wrong point are included
+  check_create_dir(area_dir)
+  final_spatial <- st_as_sf(final, coords = c('veg_loc:Longitude', 'veg_loc:Latitude'), crs = 4326)
+  final_spatial <- st_transform(final_spatial, 25832)
+  poly_list <- list()
+  # loop through all unique plot IDs
+  plot_IDs <- unique(final_spatial$plot_ID)
+  for (plot_ID in plot_IDs) {
+    # select all points belonging to the plot
+    points <- final_spatial[final_spatial$plot_ID == plot_ID,]
+    points_coords <- st_coordinates(points)
+    # calculate convex hull
+    plot_poly <- chull(st_coordinates(points))
+    plot_poly <- points_coords[c(plot_poly, plot_poly[1]),]  # closed polygon
+    # convert to spatial polygon
+    poly_list[[plot_ID]] <- Polygons(list(Polygon(plot_poly)), ID=plot_ID)
+  }
+  # combine single polygons
+  plot_poly_all <- SpatialPolygons(poly_list)
+  crs(plot_poly_all) <- CRS("+init=EPSG:25832")
+  # add buffer
+  plot_poly_all <- buffer(plot_poly_all, width=2, dissolve=FALSE)
+  # save to shapefile
+  shapefile(plot_poly_all, paste0(area_dir, "/area_polygons.shp"))
+}
 
 ################################################################################
 # DOWNLOAD IMAGES
