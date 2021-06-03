@@ -149,10 +149,6 @@ normalize_ctg.LAScluster <- function(las) {
   dtm <- grid_terrain(las, tin(), res = 0.01)  # if bigger, there are many artifacts
   las <- normalize_height(las, dtm, na.rm = T)
   las <- filter_poi(las, Z >= 0)
-  # TODO: delete, dummy RGB data
-  # las <- add_lasrgb(las, R=as.integer(floor(runif(las@data$X)*255)),
-  #                   G=as.integer(floor(runif(las@data$X)*255)),
-  #                   B=as.integer(floor(runif(las@data$X)*255)))
   # delete buffer & return points
   las <- filter_poi(las, buffer == 0)
   gc()  # make RAM space

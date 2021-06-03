@@ -38,7 +38,7 @@ ctg <- readTLSLAScatalog(path_points)
 ################################################################################
 
 # use multiple cores
-plan(multisession, workers=12L)
+plan(multisession, workers=12L, gc=T)
 
 # set options
 check_create_dir(paste0(dirname(path_points), "/01_tiled"))
@@ -68,7 +68,7 @@ for (idx in 1:nrow(area_polys)) {
 }
 
 # use single core
-plan(sequential)
+plan(sequential, gc=T)
 
 ################################################################################
 # TILING HUGE CLOUDS
@@ -94,24 +94,40 @@ plan(sequential)
 # NORMALIZE POINT CLOUDS
 ################################################################################
 
-# read from folder
-ctg_retiled <- readTLSLAScatalog(paste0(dirname(path_points), "/01_tiled"))
+# use multiple cores
+plan(multisession, workers=6L, gc=T)
 
-# set options
-opt_chunk_buffer(ctg_retiled) <- buffer_size
-opt_chunk_size(ctg_retiled) <- chunk_size
-check_create_dir(paste0(dirname(path_points), "/02_normalized"))
-opt_output_files(ctg_retiled) <- paste0(dirname(path_points), "/02_normalized/",
-                                        points_name, "_normalized_{ID}")
+# get all area IDs
+area_IDs <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=".las")
+area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
-# execute
-ctg_normalized <- normalize_ctg.LAScatalog(ctg_retiled)
-warnings()
-if (is.list(ctg_normalized)) {
-  # if a list is returned, open the resulting list
-  ctg_normalized <- readTLSLAScatalog(dirname(ctg_normalized[[1]]))
+for (area_ID in area_IDs) {
+  # read from folder
+  file_list <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=paste0("area_", area_ID))
+  # ctg_retiled <- readTLSLAScatalog(paste0(dirname(path_points), "/01_tiled"))
+  ctg_retiled <- readTLSLAScatalog(paste0(paste0(dirname(path_points), "/01_tiled/"), file_list))
+  
+  # set options
+  opt_chunk_buffer(ctg_retiled) <- buffer_size
+  opt_chunk_size(ctg_retiled) <- chunk_size
+  check_create_dir(paste0(dirname(path_points), "/02_normalized"))
+  # opt_output_files(ctg_retiled) <- paste0(dirname(path_points), "/02_normalized/",
+  #                                         points_name, "_normalized_{ID}")
+  opt_output_files(ctg_retiled) <- paste0(dirname(path_points), "/02_normalized/area_",
+                                          area_ID, "_norm_{ID}")
+  
+  # execute
+  ctg_normalized <- normalize_ctg.LAScatalog(ctg_retiled)
+  warnings()
+  if (is.list(ctg_normalized)) {
+    # if a list is returned, open the resulting list
+    ctg_normalized <- readTLSLAScatalog(dirname(ctg_normalized[[1]]))
+  }
+  lidR:::catalog_laxindex(ctg_normalized)  # lax files
 }
-lidR:::catalog_laxindex(ctg_normalized)  # lax files
+
+# use single core
+plan(sequential)
 
 ################################################################################
 # FILTER UNDERSTORY POINTS
