@@ -68,7 +68,7 @@ for (idx in 1:nrow(area_polys)) {
 }
 
 # use single core
-plan(sequential, gc=T)
+plan(sequential)
 
 ################################################################################
 # TILING HUGE CLOUDS
