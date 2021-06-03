@@ -109,7 +109,34 @@ rescale_raster <- function(raster) {
 }
 
 ################################################################################
-# FILTER UNDERSTORY POINTS
+# RETILE & FILTER UNDERSTORY POINTS
+################################################################################
+
+area_retile_ctg.LAScluster <- function(chunk, area) {
+  # return las if extents of las & area overlap
+  if (!is.null(intersect(extent(chunk), extent(area)))) {
+    las <- readLAS(chunk)
+    if (is.empty(las)) return(NULL)
+    return(las)
+  } else {
+    return(NULL)
+  }
+}
+
+area_retile_ctg.LAScatalog <- function(las, area) {
+  # retile the catalog per area
+  # undo previous selections
+  opt_select(las) <-  "*"
+  # set paramters
+  options <- list(
+    need_output_file = TRUE,  # output path necessary
+    need_buffer = FALSE,  # buffer not necessary
+    automerge = TRUE)  # combine outputs
+  # execute & return
+  output  <- catalog_apply(las, area_retile_ctg.LAScluster, area = area, .options = options)
+  return(output)
+}
+
 ################################################################################
 
 normalize_ctg.LAScluster <- function(las) {

@@ -19,6 +19,7 @@ check_create_dir(path_rasters)
 path_points <- "D:/Masterarbeit_Zoe/4_Daten/points/actual_data/day4.laz"  # input
 points_name <- substr(basename(path_points), 1, nchar(basename(path_points))-4)  # for the naming pattern
 path_area <- "D:/Masterarbeit_Zoe/4_Daten/sites/convex/area_polygons.shp"
+
 # set chunk parameters
 chunk_size <- 15  # my RAM hates everything above, so I hate everything above
 buffer_size <- 1  # to avoid edge effects & not having enough points for interpolation
@@ -26,9 +27,9 @@ raster_resolution <- 0.01
 
 # load data
 ctg <- readTLSLAScatalog(path_points)
-crs(ctg) <- CRS("+init=EPSG:25832")
-lidR:::catalog_laxindex(ctg)  # lax file, does not work on workstation, idk why
-plot(ctg, chunk=TRUE)
+#crs(ctg) <- CRS("+init=EPSG:25832")
+#lidR:::catalog_laxindex(ctg)  # lax file, does not work on workstation, idk why
+#plot(ctg, chunk=TRUE)
 
 # TODO: data day 1 to 3: no / wrong coordinate system?
 
@@ -36,34 +37,8 @@ plot(ctg, chunk=TRUE)
 # CLIPPING CLOUDS TO AOI
 ################################################################################
 
-area_retile_ctg.LAScluster <- function(chunk, area) {
-  # TODO
-  # load the data
-  las <- readLAS(chunk)
-  if (is.empty(las)) return(NULL)
-  # remove everything below certain height
-  las <- clip_roi(las, area)
-  if (is.empty(las)) return(NULL)
-  # no need for removing the buffer, if there isn't any
-  gc()  # make RAM space
-  return(las)
-}
-
-area_retile_ctg.LAScatalog <- function(las, area) {
-  # TODO
-  # undo previous selections
-  opt_select(las) <-  "*"
-  # set paramters
-  options <- list(
-    need_output_file = TRUE,  # output path necessary
-    need_buffer = FALSE,  # buffer not necessary
-    automerge = TRUE)  # combine outputs
-  # execute & return
-  output  <- catalog_apply(las, area_retile_ctg.LAScluster, area = area, .options = options)
-  return(output)
-}
-
-################################################################################
+# use multiple cores
+plan(multisession, workers=12L)
 
 # set options
 check_create_dir(paste0(dirname(path_points), "/01_tiled"))
@@ -71,43 +46,49 @@ opt_chunk_buffer(ctg) <- 0  # otherwise chunks are saved with buffer
 opt_chunk_size(ctg) <- chunk_size
 plot(ctg, chunk=TRUE)
 
-# loop through site shapefile
+# load site polygons
 area_polys <- st_read(path_area)
-crs(area_polys) <- CRS("+init=EPSG:25832")
-#for (idx in 1:nrow(area_polys)) {
-# day 1) 7, 8
-# day 2) 1
-# day 3) 2,3
-# day 4) 4,5,6
-idx=4
+st_crs(area_polys) <- CRS("+init=EPSG:25832")
+
+# loop through site polygons
+for (idx in 1:nrow(area_polys)) {
+  # load polygon
   area <- area_polys[idx,]
   area_id <- idx
-  # set output path
-  opt_output_files(ctg) <- paste0(dirname(path_points), "/01_tiled/area_", area_id, "_tiled_{ID}")
-  # clip points to area
-  plan(multisession, workers = 6L)
-  ctg_area <- area_retile_ctg.LAScatalog(ctg, area) # ???
-#}
+  # check if area & catalog are even overlapping
+  if (!is.null(intersect(extent(ctg), extent(area)))) {
+    # print, which area is processed
+    print(paste0("... clipping area ", area_id))
+    # set output path
+    opt_output_files(ctg) <- paste0(dirname(path_points), "/01_tiled/area_", area_id, "_tiled_{ID}")
+    # clip points to area
+    ctg_area <- area_retile_ctg.LAScatalog(ctg, area)
+    warnings()
+  }
+}
+
+# use single core
+plan(sequential)
 
 ################################################################################
 # TILING HUGE CLOUDS
 ################################################################################
 
-# set options
-check_create_dir(paste0(dirname(path_points), "/01_tiled"))
-opt_output_files(ctg) <- paste0(dirname(path_points), "/01_tiled/", points_name, "_tiled_{ID}")
-opt_chunk_buffer(ctg) <- 0  # otherwise chunks are saved with buffer
-opt_chunk_size(ctg) <- chunk_size
-plot(ctg, chunk=TRUE)
-
-# execute
-ctg_retiled <- catalog_retile(ctg)
-if (is.list(ctg_retiled)) {
-  ctg_retiled <- readTLSLAScatalog(dirname(ctg_retiled[[1]]))
-  # if a list is returned, open the resulting list
-}
-lidR:::catalog_laxindex(ctg_retiled)  # lax files
-warnings()
+# # set options
+# check_create_dir(paste0(dirname(path_points), "/01_tiled"))
+# opt_output_files(ctg) <- paste0(dirname(path_points), "/01_tiled/", points_name, "_tiled_{ID}")
+# opt_chunk_buffer(ctg) <- 0  # otherwise chunks are saved with buffer
+# opt_chunk_size(ctg) <- chunk_size
+# plot(ctg, chunk=TRUE)
+# 
+# # execute
+# ctg_retiled <- catalog_retile(ctg)
+# if (is.list(ctg_retiled)) {
+#   ctg_retiled <- readTLSLAScatalog(dirname(ctg_retiled[[1]]))
+#   # if a list is returned, open the resulting list
+# }
+# lidR:::catalog_laxindex(ctg_retiled)  # lax files
+# warnings()
 
 ################################################################################
 # NORMALIZE POINT CLOUDS
