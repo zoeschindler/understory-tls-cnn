@@ -9,6 +9,7 @@
 
 # load packages
 library(lidR)  # for point clouds, also loads sp & raster
+library(TreeLS)
 
 ################################################################################
 # HELPER FUNCTIONS
@@ -50,7 +51,7 @@ metric_ortho <- function(r, g, b, z) {
 add_geometry <- function(las) {
   # necessary for raster_geometry
   # returns geometric features based on eigenvalues
-  eigen <- eigen_decomposition(las, 20, 16)  # 20 neighbours, 6 cores
+  eigen <- eigen_decomposition(las, 20, 16)  # 20 neighbours, 16 cores
   las <- add_lasattribute(las, eigen[,3]/(eigen[,1] + eigen[,2] + eigen[,3]), "curvature", "curvature")
   las <- add_lasattribute(las, (eigen[,1] - eigen[,2])/eigen[,1], "linearity", "linearity")
   las <- add_lasattribute(las, (eigen[,2] - eigen[,3])/eigen[,1], "planarity", "planarity")
@@ -172,31 +173,90 @@ normalize_ctg.LAScatalog <- function(las) {
 
 ################################################################################
 
-remove_understory_ctg.LAScluster <- function(las, height) {
+remove_understory_ctg.LAScluster <- function(las, height, remove_stems) {
   # returns point cloud without understory (LAS file)
   # load the data
   las <- readLAS(las)
   if (is.empty(las)) return(NULL)
+  # get & remove stem trees
+  if (remove_stems) {
+    map <- treeMap(las, map.hough())
+    las <- treePoints(las, map, trp.crop())
+    las <- stemPoints(las, stm.hough(pixel_size = 0.01))
+    las <- filter_poi(las, Stem == FALSE)
+  }
   # remove everything below certain height
   las <- filter_poi(las, Z <= height)
   if (is.empty(las)) return(NULL)
-  # TODO: try to remove stems & floating stuff?
-  # no need for removing the buffer, if there isn't any
-  gc()  # make RAM space
+  # voxel metrics: is there a point in the voxel or not?
+  voxels <- voxel_metrics(las, length(X), res=0.1, all_voxels=TRUE)
+  voxels$V1 <- ifelse(voxels$V1 > 0, 1, 0)
+  voxels$V1[is.na(voxels$V1)] <- 0
+  # convert coordinates to [cm]
+  # because otherwise R adds decimal places and makes this crash
+  voxels$X <- as.integer(voxels$X*100)
+  voxels$Y <- as.integer(voxels$Y*100)
+  voxels$Z <- as.integer(voxels$Z*100)
+  # loop from lowest to highest z value, start at 0.5 m height
+  z_loop_vals <- sort(unique(voxels$Z))[6:length(unique(voxels$Z))]
+  for (z_val in z_loop_vals) {
+    # loop through every non-empty voxel with this z value
+    z_loop_vox <- voxels[voxels$Z == z_val & voxels$V1 == 1,]
+    if (nrow(z_loop_vox != 0)) {
+      for (idx in 1:nrow(z_loop_vox)) {
+        vox <- z_loop_vox[idx,]
+        # set attribute to empty, if z-1, x+-1, y+-1 is all empty
+        neighbours <- voxels$V1[voxels$Z == vox$Z-10 &
+                                  voxels$X >= vox$X-10 & voxels$X <= vox$X+10 &
+                                  voxels$Y >= vox$Y-10 & voxels$Y <= vox$Y+10]
+        if (mean(neighbours) == 0) {
+          voxels$V1[voxels$X == vox$X & voxels$Y == vox$Y & voxels$Z == vox$Z] <- 0
+        }
+      }
+    }
+  }
+  # convert coordinates back to [m]
+  voxels$X <- voxels$X/100
+  voxels$Y <- voxels$Y/100
+  voxels$Z <- voxels$Z/100
+  # add voxel attributes to the points
+  las <- add_lasattribute(las, 1, "V1", "keep voxels with 1")  # create empty attribute
+  # save points which should remain the same
+  unchanged_las <- filter_poi(las, Z <= min(z_loop_vals-5)/100)
+  # for each (filtered) vertical voxel layer, create a raster
+  for (z_val in z_loop_vals) {
+    # create raster
+    z_subset <- voxels[as.integer(voxels$Z*100)==z_val,]
+    z_subset <- as.data.frame(z_subset)[,c(1,2,4)]
+    new_raster <- rasterFromXYZ(z_subset)
+    crs(new_raster) <- CRS("+init=EPSG:25832")
+    # add raster values to point cloud
+    las_z <- filter_poi(las, Z > ((z_val-5)/100) & Z <= ((z_val+5)/100))
+    las_z <- merge_spatial(las_z, new_raster, "V1")
+    # remove points with V1 == 0
+    las_z <- filter_poi(las_z, V1 == 1)
+    unchanged_las <- rbind(unchanged_las, las_z)
+  } 
+  # delete all points with attribute empty
+  las <- unchanged_las
+  rm(unchanged_las); gc()
+  # delete buffer & return points
+  las <- filter_poi(las, buffer == 0)
   return(las)
 }
 
-remove_understory_ctg.LAScatalog <- function(las, height) {
+remove_understory_ctg.LAScatalog <- function(las, height=2, remove_stems=TRUE) {
   # returns point cloud without understory (LAS catalog)
   # undo previous selections
   opt_select(las) <-  "*"
   # set paramters
   options <- list(
     need_output_file = TRUE,  # output path necessary
-    need_buffer = FALSE,  # buffer not necessary
+    need_buffer = TRUE,  # buffer necessary
     automerge = TRUE)  # combine outputs
   # execute & return
-  output  <- catalog_apply(las, remove_understory_ctg.LAScluster, height = height, .options = options)
+  output  <- catalog_apply(las, remove_understory_ctg.LAScluster, height = height,
+                           remove_stems = remove_stems, .options = options)
   return(output)
 }
 
@@ -457,9 +517,9 @@ raster_geometry_ctg.LAScatalog <- function(las, resolution, output_dir, output_n
   opt_output_files(las) <- paste0(temp_dir, "/temp_geometry_{ID}")
   # set parameters
   options <- list(
-    need_output_file = TRUE,  # output path not necessary
+    need_output_file = TRUE,  # output path necessary
     need_buffer = TRUE,  # buffer necessary
-    automerge = FALSE,  # combine outputs
+    automerge = FALSE,  # don't combine outputs
     raster_alignment = resolution)  # align chunks & rasters
   # calculate & merge raster
   output  <- catalog_apply(las, raster_geometry_ctg.LAScluster, resolution = resolution,
@@ -523,9 +583,9 @@ raster_reflectance_ctg.LAScatalog <- function(las, resolution, output_dir, outpu
   opt_output_files(las) <- paste0(temp_dir, "/temp_reflectance_{ID}")
   # set parameters
   options <- list(
-    need_output_file = TRUE,  # output path not necessary
+    need_output_file = TRUE,  # output path necessary
     need_buffer = TRUE,  # buffer necessary
-    automerge = FALSE,  # combine outputs
+    automerge = FALSE,  # don't combine outputs
     raster_alignment = resolution)  # align chunks & rasters
   # calculate & merge raster
   output  <- catalog_apply(las, raster_reflectance_ctg.LAScluster, resolution = resolution,

@@ -104,6 +104,7 @@ area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_"
 for (area_ID in area_IDs) {
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=paste0("area_", area_ID))
+  file_list <- file_list[grepl("las", file_list)]
   # ctg_retiled <- readTLSLAScatalog(paste0(dirname(path_points), "/01_tiled"))
   ctg_retiled <- readTLSLAScatalog(paste0(paste0(dirname(path_points), "/01_tiled/"), file_list))
   
@@ -133,27 +134,39 @@ plan(sequential)
 # FILTER UNDERSTORY POINTS
 ################################################################################
 
-# basically unnecessary, because I could filter catalog by height
-# but nice to have these point clouds for later / other programs
+# use multiple cores
+plan(multisession, workers=12L, gc=T)
 
-# read from folder
-ctg_normalized <- readTLSLAScatalog(paste0(dirname(path_points), "/02_normalized"))
+# get all area IDs
+area_IDs <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=".las")
+area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
-# set options
-opt_chunk_buffer(ctg_normalized) <- 0
-opt_chunk_size(ctg_normalized) <- 0
-check_create_dir(paste0(dirname(path_points), "/03_understory"))
-opt_output_files(ctg_normalized) <- paste0(dirname(path_points), "/03_understory/",
-                                           points_name, "_understory_{ID}")
-
-# execute
-ctg_understory <- remove_understory_ctg.LAScatalog(ctg_normalized, height=2)
-warnings()
-if (is.list(ctg_understory)) {
-  # if a list is returned, open the resulting list
-  ctg_understory <- readTLSLAScatalog(dirname(ctg_understory[[1]]))
+for (area_ID in area_IDs) {
+  # read from folder
+  file_list <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=paste0("area_", area_ID))
+  file_list <- file_list[grepl("las", file_list)]
+  # ctg_normalized <- readTLSLAScatalog(paste0(dirname(path_points), "/02_normalized"))
+  ctg_normalized <- readTLSLAScatalog(paste0(paste0(dirname(path_points), "/02_normalized/"), file_list))
+  
+  # set options
+  opt_chunk_buffer(ctg_normalized) <- buffer_size
+  opt_chunk_size(ctg_normalized) <- chunk_size
+  check_create_dir(paste0(dirname(path_points), "/03_understory"))
+  opt_output_files(ctg_normalized) <- paste0(dirname(path_points), "/03_understory/area_",
+                                             area_ID, "_understory_{ID}")
+  
+  # execute
+  ctg_understory <- remove_understory_ctg.LAScatalog(ctg_normalized, height=2, remove_stems=TRUE)
+  warnings()
+  if (is.list(ctg_understory)) {
+    # if a list is returned, open the resulting list
+    ctg_understory <- readTLSLAScatalog(dirname(ctg_understory[[1]]))
+  }
+  lidR:::catalog_laxindex(ctg_understory)
 }
-lidR:::catalog_laxindex(ctg_understory)
+
+# use single core
+plan(sequential)
 
 ################################################################################
 # CALCULATE RASTERS
@@ -184,13 +197,6 @@ warnings()
 
 # will be used for filterung vegetation plots with heights above 2m
 # cut point cloud is used because otherwise everything would be excluded due to overstory
-
-################################################################################
-# CLIP RASTERS TO AOI
-################################################################################
-
-# TODO
-# need shapes
 
 ################################################################################
 # NORMALIZE RASTERS
