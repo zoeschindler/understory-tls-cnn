@@ -275,7 +275,7 @@ filter_overlaps <- function(plot_path, tile_size) {
 }
 
 ################################################################################
-# CREATE & RESACLE RASTER TILES
+# CREATE & RESCALE RASTER TILES
 ################################################################################
 
 raster_clip_all <- function(raster_dir, plot_path, output_dir, tile_size, rescale=TRUE) {
