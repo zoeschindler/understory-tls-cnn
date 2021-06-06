@@ -32,6 +32,47 @@ check_create_dir <- function(path) {
 }
 
 ################################################################################
+
+rescale_values <- function(folder) {
+  # gets minimum & maximum values for rescaling
+  # get all raster
+  raster_list <- list.files(folder, pattern=".tif", full.names=TRUE, recursive=TRUE)
+  raster_list <- raster_list[!grepl("temp", raster_list)]
+  # set up empty lookup list
+  lookup_list <- list()
+  # get all unique raster types
+  types <- c()
+  for (i in 1:length(raster_list)) {types[i] <- strsplit(basename(raster_list[i]), "_area_")[[1]][1]}
+  types <- unique(types)
+  # loop through all unique raster types
+  for (type_idx in 1:length(types)) {
+    # get all raster paths with that type
+    type <- types[type_idx]
+    type_paths <- raster_list[grepl(type, raster_list)]
+    # set up min / max value
+    val_min = c()
+    val_max = c()
+    # loop through all rasters of that type
+    for (idx in 1:length(type_paths)) {
+      # load raster & get extreme values
+      type_raster <- stack(type_paths[idx])
+      val_min_temp = min(minValue(type_raster))
+      val_max_temp = max(maxValue(type_raster))
+      # depending on value & index, set new min / max value
+      if (idx == 1) {val_min <- val_min_temp}
+      if (val_min_temp < val_min) {val_min <- val_min_temp}
+      if (idx == 1) {val_max <- val_max_temp}
+      if (val_max_temp > val_max) {val_max <- val_max_temp}
+    }
+    # save final min and max value un lookup list
+    lookup_list[paste0(type, "_min")] <- val_min
+    lookup_list[paste0(type, "_max")] <- val_max
+  }
+  # return full lookup list
+  return(lookup_list)
+}
+
+################################################################################
 # FILTER MIDSTORY PLOTS
 ################################################################################
 
@@ -234,10 +275,10 @@ filter_overlaps <- function(plot_path, tile_size) {
 }
 
 ################################################################################
-# RASTER TILES
+# CREATE & RESACLE RASTER TILES
 ################################################################################
 
-raster_clip_all <- function(raster_dir, plot_path, output_dir, tile_size) {
+raster_clip_all <- function(raster_dir, plot_path, output_dir, tile_size, rescale=TRUE) {
   # clips all rasters to small areas around the vegetation plots
   # creates folder structures similar to the input rasters
   check_create_dir(output_dir)
@@ -247,18 +288,29 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, tile_size) {
   # get all rasters within raster_dir (without unscaled nDSM)
   raster_list <- list.files(raster_dir, pattern=".tif", recursive=TRUE)
   raster_list <- raster_list[!grepl("nDSM_unscaled", raster_list)]
+  raster_list <- raster_list[!grepl("temp", raster_list)]
   # calculate edge length (divisible by two)
   edge <- ((tile_size*100)%/%2)/100
+  # create rescaling lookup table
+  if (rescale) {rescale_lookup <- rescale_values(raster_dir)}
   # loop through rasters
   for (raster_path in raster_list) {
     # load raster
-    raster <- raster(paste0(raster_dir,"/",raster_path))
+    raster <- stack(paste0(raster_dir, "/", raster_path))
     crs(raster) <- CRS("+init=EPSG:25832")
     # get points within raster extent
     subset <- st_intersection(plots, st_set_crs(st_as_sf(as(extent(raster), "SpatialPolygons")), st_crs(plots)))
     # get raster dir & type & name
     subfolder <- strsplit(raster_path, "/")[[1]][1]
     name <- strsplit(strsplit(raster_path, "/")[[1]][2], "[.]")[[1]][1]
+    type <- strsplit(name, "_area_")[[1]][1]
+    check_create_dir(paste0(output_dir, "/", subfolder))
+    # rescale raster
+    if (rescale) {
+      rescale_min <- rescale_lookup[[paste0(type, "_min")]]
+      rescale_max <- rescale_lookup[[paste0(type, "_max")]]
+      raster <- (raster-rescale_min)/(rescale_max-rescale_min)
+    }
     # loop through plots
     for (idx in 1:nrow(subset)) {
       plot <- subset[idx,]
@@ -273,7 +325,6 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, tile_size) {
       # check if raster is empty, only continue if not
       if (!all(is.na(as.vector(clip)))) {
         # save clip
-        check_create_dir(paste0(output_dir, "/", subfolder))
         writeRaster(clip, paste0(output_dir, "/", subfolder, "/", name,
                                  "_", plot_id, "_", veg_id, ".tif"), overwrite=TRUE)
       }
