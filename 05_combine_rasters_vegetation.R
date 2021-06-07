@@ -16,6 +16,9 @@ path_nDSM <- paste0(path_rasters, "/nDSM_unscaled")  # input
 path_points_understory <- "D:/Masterarbeit_Zoe/4_Daten/points/actual_data/03_understory"  # input
 path_points_normalized <- "D:/Masterarbeit_Zoe/4_Daten/points/actual_data/02_normalized"  # input
 
+# rasters to be clipped
+clip_these <- c("nDSM", "ortho", "point_density", "reflectance_mean")  # TODO: this is dummy data
+
 # set parameter
 tile_size <- 0.5
 
@@ -242,7 +245,6 @@ filter_overlaps <- function(plot_path, tile_size) {
   for (i in 1:nrow(plots)) {
     polygon <- extent(c(xmin=center_x[i]-edge, xmax=center_x[i]+edge, ymin=center_y[i]-edge, ymax=center_y[i]+edge))
     polygon_list <- rbind(polygon_list, st_as_sf(as(polygon, "SpatialPolygons")))
-    # TODO: description must be passed over!!
   }
   polygon_list$Description <- plots$Description
   polygon_list <- st_set_crs(polygon_list, 25832)
@@ -278,7 +280,7 @@ filter_overlaps <- function(plot_path, tile_size) {
 # CREATE & RESCALE RASTER TILES
 ################################################################################
 
-raster_clip_all <- function(raster_dir, plot_path, output_dir, tile_size, rescale=TRUE) {
+raster_clip_all <- function(raster_dir, plot_path, output_dir, selection, tile_size, rescale=TRUE) {
   # clips all rasters to small areas around the vegetation plots
   # creates folder structures similar to the input rasters
   check_create_dir(output_dir)
@@ -295,38 +297,41 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, tile_size, rescal
   if (rescale) {rescale_lookup <- rescale_values(raster_dir)}
   # loop through rasters
   for (raster_path in raster_list) {
-    # load raster
-    raster <- stack(paste0(raster_dir, "/", raster_path))
-    crs(raster) <- CRS("+init=EPSG:25832")
-    # get points within raster extent
-    subset <- st_intersection(plots, st_set_crs(st_as_sf(as(extent(raster), "SpatialPolygons")), st_crs(plots)))
     # get raster dir & type & name
     subfolder <- strsplit(raster_path, "/")[[1]][1]
     name <- strsplit(strsplit(raster_path, "/")[[1]][2], "[.]")[[1]][1]
     type <- strsplit(name, "_area_")[[1]][1]
-    check_create_dir(paste0(output_dir, "/", subfolder))
-    # rescale raster
-    if (rescale) {
-      rescale_min <- rescale_lookup[[paste0(type, "_min")]]
-      rescale_max <- rescale_lookup[[paste0(type, "_max")]]
-      raster <- (raster-rescale_min)/(rescale_max-rescale_min)
-    }
-    # loop through plots
-    for (idx in 1:nrow(subset)) {
-      plot <- subset[idx,]
-      # clip raster with point + edge
-      center_x <- round(st_coordinates(plot)[,1], 2) # round on cm
-      center_y <- round(st_coordinates(plot)[,2], 2) # round on cm
-      rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge, ymin=center_y-edge, ymax=center_y+edge))
-      clip <- crop(raster, rectangle)
-      # get plot plot_ID & veg_ID
-      plot_id <- strsplit(strsplit(plot$Description, ",")[[1]][1], " ")[[1]][2]
-      veg_id <- strsplit(strsplit(plot$Description, ",")[[1]][2], " ")[[1]][3]
-      # check if raster is empty, only continue if not
-      if (!all(is.na(as.vector(clip)))) {
-        # save clip
-        writeRaster(clip, paste0(output_dir, "/", subfolder, "/", name,
-                                 "_", plot_id, "_", veg_id, ".tif"), overwrite=TRUE)
+    # check if raster is of interest
+    if (type %in% selection) {
+      check_create_dir(paste0(output_dir, "/", subfolder))
+      # load raster
+      raster <- stack(paste0(raster_dir, "/", raster_path))
+      crs(raster) <- CRS("+init=EPSG:25832")
+      # get points within raster extent
+      subset <- st_intersection(plots, st_set_crs(st_as_sf(as(extent(raster), "SpatialPolygons")), st_crs(plots)))
+      # rescale raster
+      if (rescale) {
+        rescale_min <- rescale_lookup[[paste0(type, "_min")]]
+        rescale_max <- rescale_lookup[[paste0(type, "_max")]]
+        raster <- (raster-rescale_min)/(rescale_max-rescale_min)
+      }
+      # loop through plots
+      for (idx in 1:nrow(subset)) {
+        plot <- subset[idx,]
+        # clip raster with point + edge
+        center_x <- round(st_coordinates(plot)[,1], 2) # round on cm
+        center_y <- round(st_coordinates(plot)[,2], 2) # round on cm
+        rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge, ymin=center_y-edge, ymax=center_y+edge))
+        clip <- crop(raster, rectangle)
+        # get plot plot_ID & veg_ID
+        plot_id <- strsplit(strsplit(plot$Description, ",")[[1]][1], " ")[[1]][2]
+        veg_id <- strsplit(strsplit(plot$Description, ",")[[1]][2], " ")[[1]][3]
+        # check if raster is empty, only continue if not
+        if (!all(is.na(as.vector(clip)))) {
+          # save clip
+          writeRaster(clip, paste0(output_dir, "/", subfolder, "/", name,
+                                   "_", plot_id, "_", veg_id, ".tif"), overwrite=TRUE)
+        }
       }
     }
   }
@@ -336,13 +341,13 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, tile_size, rescal
 # EXECUTION
 ################################################################################
 
-# TODO: eventuell markieren, dass Ã¼berlappende immer nur ins gleiche Datenset dÃ¼rfen,
+# TODO: eventuell markieren, dass überlappende immer nur ins gleiche Datenset dürfen,
 #       oder nur raus werfen ab gewissen overlap Prozent
 #       -> 8 plots would be removed due to overlap -> okay
 
 new_path_vegetation <- filter_midstory_all(path_vegetation, path_nDSM, path_points_understory,
                                            path_points_normalized, tile_size)
 newer_path_vegetation <- filter_overlaps(new_path_vegetation, tile_size)
-raster_clip_all(path_rasters, newer_path_vegetation, path_clips, tile_size)
+raster_clip_all(path_rasters, newer_path_vegetation, path_clips, clip_these, tile_size)
 
 ################################################################################

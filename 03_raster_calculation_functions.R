@@ -514,7 +514,7 @@ raster_geometry_ctg.LAScatalog <- function(las, resolution, output_dir, output_n
   # set temporary output path
   temp_dir <- paste0(output_dir, "/temp")
   check_create_dir(temp_dir)
-  opt_output_files(las) <- paste0(temp_dir, "/temp_geometry_{ID}")
+  opt_output_files(las) <- paste0(temp_dir, "/temp_geometry_", output_name, "_{ID}")
   # set parameters
   options <- list(
     need_output_file = TRUE,  # output path necessary
@@ -549,6 +549,8 @@ raster_geometry_ctg.LAScatalog <- function(las, resolution, output_dir, output_n
       merged_raster[[idx]] <- raster_band
     }
   }
+  # delete temporary folder
+  unlink(temp_dir, recursive = TRUE)
   # return bands stacked
   if (!saving) {
     return(merged_raster)
@@ -580,7 +582,7 @@ raster_reflectance_ctg.LAScatalog <- function(las, resolution, output_dir, outpu
   # set temporary output path
   temp_dir <- paste0(output_dir, "/temp")
   check_create_dir(temp_dir)
-  opt_output_files(las) <- paste0(temp_dir, "/temp_reflectance_{ID}")
+  opt_output_files(las) <- paste0(temp_dir, "/temp_reflectance_", output_name, "_{ID}")
   # set parameters
   options <- list(
     need_output_file = TRUE,  # output path necessary
@@ -615,6 +617,8 @@ raster_reflectance_ctg.LAScatalog <- function(las, resolution, output_dir, outpu
       merged_raster[[idx]] <- raster_band
     }
   }
+  # delete temporary folder
+  unlink(temp_dir, recursive = TRUE)
   # return bands stacked
   if (!saving) {
     return(merged_raster)

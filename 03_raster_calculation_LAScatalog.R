@@ -27,11 +27,8 @@ raster_resolution <- 0.01
 
 # load data
 ctg <- readTLSLAScatalog(path_points)
-#crs(ctg) <- CRS("+init=EPSG:25832")
 #lidR:::catalog_laxindex(ctg)  # lax file, does not work on workstation, idk why
 #plot(ctg, chunk=TRUE)
-
-# TODO: data day 1 to 3: no / wrong coordinate system?
 
 ################################################################################
 # CLIPPING CLOUDS TO AOI
@@ -47,8 +44,13 @@ opt_chunk_size(ctg) <- chunk_size
 plot(ctg, chunk=TRUE)
 
 # load site polygons
+# TODO: adapt to new crs
 area_polys <- st_read(path_area)
 st_crs(area_polys) <- CRS("+init=EPSG:25832")
+if (is.na(crs(ctg))) {
+  area_polys <- st_transform(area_polys, 4978)
+  crs(ctg) <- CRS("+init=EPSG:4978")
+}
 
 # loop through site polygons
 for (idx in 1:nrow(area_polys)) {
@@ -103,10 +105,10 @@ area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_"
 
 for (area_ID in area_IDs) {
   # read from folder
-  file_list <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=paste0("area_", area_ID))
-  file_list <- file_list[grepl("las", file_list)]
+  file_list <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=paste0("area_", area_ID), full.names=TRUE)
+  file_list <- file_list[grepl(".las", file_list)]
   # ctg_retiled <- readTLSLAScatalog(paste0(dirname(path_points), "/01_tiled"))
-  ctg_retiled <- readTLSLAScatalog(paste0(paste0(dirname(path_points), "/01_tiled/"), file_list))
+  ctg_retiled <- readTLSLAScatalog(file_list)
   
   # set options
   opt_chunk_buffer(ctg_retiled) <- buffer_size
@@ -143,10 +145,10 @@ area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_"
 
 for (area_ID in area_IDs) {
   # read from folder
-  file_list <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=paste0("area_", area_ID))
-  file_list <- file_list[grepl("las", file_list)]
+  file_list <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=paste0("area_", area_ID), full.names=TRUE)
+  file_list <- file_list[grepl(".las", file_list)]
   # ctg_normalized <- readTLSLAScatalog(paste0(dirname(path_points), "/02_normalized"))
-  ctg_normalized <- readTLSLAScatalog(paste0(paste0(dirname(path_points), "/02_normalized/"), file_list))
+  ctg_normalized <- readTLSLAScatalog(file_list)
   
   # set options
   opt_chunk_buffer(ctg_normalized) <- buffer_size
@@ -172,39 +174,33 @@ plan(sequential)
 # CALCULATE RASTERS
 ################################################################################
 
-# read from folder
-ctg_understory <- readTLSLAScatalog(paste0(dirname(path_points), "/03_understory"))
+# use multiple cores
+# plan(multisession, workers=6L, gc=T)
+# computer unhappy with multisession, because eigenvalue calculation also specifies cores
 
-# set options
-opt_chunk_buffer(ctg_understory) <- buffer_size
-opt_chunk_size(ctg_understory) <- chunk_size
+# get all area IDs
+area_IDs <- list.files(paste0(dirname(path_points), "/03_understory"), pattern=".las")
+area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
-# execute - input for CNN
-raster_create_all_ctg(ctg_understory, raster_resolution, path_rasters, points_name, rescale=FALSE)
-warnings()
+for (area_ID in area_IDs) {
+  # read from folder
+  file_list <- list.files(paste0(dirname(path_points), "/03_understory"), pattern=paste0("area_", area_ID), full.names=TRUE)
+  file_list <- file_list[grepl("las", file_list)]
+  # ctg_understory <- readTLSLAScatalog(paste0(dirname(path_points), "/03_understory"))
+  ctg_understory <- readTLSLAScatalog(file_list)
+  
+  # set options
+  opt_chunk_buffer(ctg_understory) <- buffer_size
+  opt_chunk_size(ctg_understory) <- chunk_size
+  
+  # execute - input for CNN & filtering vegetation plots
+  raster_create_all_ctg(ctg_understory, raster_resolution, path_rasters, paste0("area_", area_ID), rescale=FALSE)
+  raster_nDSM_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/nDSM_unscaled"),
+                             paste0("area_", area_ID), rescale=FALSE)
+  warnings()
+}
 
-# TODO: merging the raster takes 3x as the raster calcualtion
-
-# not rescaled, so I can normalize later, per area or per everything
-# will be normalized & used as an input for the CNN
-
-################################################################################
-
-# execute - for filtering vegetation plots
-raster_nDSM_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/nDSM_unscaled"),
-                           points_name, rescale=FALSE)
-warnings()
-
-# will be used for filterung vegetation plots with heights above 2m
-# cut point cloud is used because otherwise everything would be excluded due to overstory
-
-################################################################################
-# NORMALIZE RASTERS
-################################################################################
-
-# TODO
-# need clipped rasters
-
-# based on rasters of all areas combined
+# use single core
+# plan(sequential)
 
 ################################################################################

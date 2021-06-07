@@ -18,13 +18,14 @@ library(Hmisc)  # for cluster analysis
 path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"  # single area
 
 # get all relevant raster paths
-raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE)
+raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE, full.names=TRUE)
 raster_list <- raster_list[!grepl("nDSM_unscaled", raster_list)]  # reove unscales nDSM from list
 raster_list <- raster_list[!grepl("ortho", raster_list)]  # I want to keep this anyway
+raster_list <- raster_list[!grepl("temp", raster_list)]  # remove temporary files
 
 # load all those rasters
 rasters <- list()
-for (i in raster_list) {rasters[i] = raster(paste0(path_rasters, "/", i))}
+for (idx in 1:length(raster_list)) {rasters[[idx]] = raster(raster_list[idx])}
 
 # get unique area names
 area_names <- c()
@@ -93,7 +94,7 @@ biplot(pca_all, cex=c(0.5,1))#, xlim=c(-0.05, 0.05), ylim=c(-0.05, 0.05))
 ################################################################################
 
 # threshold: spearmans rho = 0.7
-# beim rausnehmen drauf achten, was mehr zu den ersten PCA beitrÃ¤gt?
+# beim rausnehmen drauf achten, was mehr zu den ersten PCA beiträgt?
 
 # look at the situation
 clust_all_1 <- varclus(as.matrix(raster_df), similarity = c("spearman"))
