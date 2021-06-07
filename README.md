@@ -7,3 +7,4 @@
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/03_raster_calculation_functions.R">03_raster_calculation_functions.R</a>: notwendige Funktionen für Raster Berechnung <br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/04_check_collinearity.R">04_check_collinearity.R</a>: Kolinearitäten der Raster checken <br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/05_combine_rasters_vegetation.R">05_combine_rasters_vegetation.R</a>: Vegetations-Plots filtern & verschneiden mit Rastern<br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/06_prepare_cnn_input.R">06_prepare_cnn_input.R</a>: Raster-Clips je nach CNN stacken, nach Label sortieren und speichern<br>
