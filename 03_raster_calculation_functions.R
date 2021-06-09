@@ -132,7 +132,7 @@ area_retile_ctg.LAScatalog <- function(las, area) {
   options <- list(
     need_output_file = TRUE,  # output path necessary
     need_buffer = FALSE,  # buffer not necessary
-    automerge = TRUE)  # combine outputs
+    automerge = FALSE)  # combine outputs
   # execute & return
   output  <- catalog_apply(las, area_retile_ctg.LAScluster, area = area, .options = options)
   return(output)
@@ -146,10 +146,10 @@ normalize_ctg.LAScluster <- function(las) {
   las <- readLAS(las)
   if (is.empty(las)) return(NULL)
   # classify & normalize
-  las <- classify_ground(las, csf(class_threshold = 0.3, cloth_resolution = 0.3, sloop_smooth = TRUE))  # has to be small due to smaller areas & heavy slope 
+  las <- classify_ground(las, csf(class_threshold = 0.3, cloth_resolution = 0.1, sloop_smooth = TRUE))  # has to be small due to smaller areas & heavy slope 
   dtm <- grid_terrain(las, tin(), res = 0.01)  # if bigger, there are many artifacts
   las <- normalize_height(las, dtm, na.rm = T)
-  las <- filter_poi(las, Z >= 0)
+  las <- filter_poi(las, Z >= -0.3)
   # delete buffer & return points
   las <- filter_poi(las, buffer == 0)
   gc()  # make RAM space
@@ -173,7 +173,7 @@ normalize_ctg.LAScatalog <- function(las) {
 
 ################################################################################
 
-remove_understory_ctg.LAScluster <- function(las, height, remove_stems) {
+filter_understory_ctg.LAScluster <- function(las, height, remove_stems) {
   # returns point cloud without understory (LAS file)
   # load the data
   las <- readLAS(las)
@@ -194,11 +194,11 @@ remove_understory_ctg.LAScluster <- function(las, height, remove_stems) {
   voxels$V1[is.na(voxels$V1)] <- 0
   # convert coordinates to [cm]
   # because otherwise R adds decimal places and makes this crash
-  voxels$X <- as.integer(voxels$X*100)
-  voxels$Y <- as.integer(voxels$Y*100)
-  voxels$Z <- as.integer(voxels$Z*100)
+  voxels$X <- as.integer(round(voxels$X,2)*100)
+  voxels$Y <- as.integer(round(voxels$Y,2)*100)
+  voxels$Z <- as.integer(round(voxels$Z,2)*100)
   # loop from lowest to highest z value, start at 0.5 m height
-  z_loop_vals <- sort(unique(voxels$Z))[6:length(unique(voxels$Z))]
+  z_loop_vals <- sort(unique(voxels$Z))[9:length(unique(voxels$Z))]
   for (z_val in z_loop_vals) {
     # loop through every non-empty voxel with this z value
     z_loop_vox <- voxels[voxels$Z == z_val & voxels$V1 == 1,]
@@ -229,7 +229,7 @@ remove_understory_ctg.LAScluster <- function(las, height, remove_stems) {
     z_subset <- voxels[as.integer(voxels$Z*100)==z_val,]
     z_subset <- as.data.frame(z_subset)[,c(1,2,4)]
     new_raster <- rasterFromXYZ(z_subset)
-    crs(new_raster) <- CRS("+init=EPSG:25832")
+    crs(new_raster) <- crs(las)
     # add raster values to point cloud
     las_z <- filter_poi(las, Z > ((z_val-5)/100) & Z <= ((z_val+5)/100))
     las_z <- merge_spatial(las_z, new_raster, "V1")
@@ -245,7 +245,7 @@ remove_understory_ctg.LAScluster <- function(las, height, remove_stems) {
   return(las)
 }
 
-remove_understory_ctg.LAScatalog <- function(las, height=2, remove_stems=TRUE) {
+filter_understory_ctg.LAScatalog <- function(las, height=2, remove_stems=TRUE) {
   # returns point cloud without understory (LAS catalog)
   # undo previous selections
   opt_select(las) <-  "*"
@@ -255,7 +255,7 @@ remove_understory_ctg.LAScatalog <- function(las, height=2, remove_stems=TRUE) {
     need_buffer = TRUE,  # buffer necessary
     automerge = TRUE)  # combine outputs
   # execute & return
-  output  <- catalog_apply(las, remove_understory_ctg.LAScluster, height = height,
+  output  <- catalog_apply(las, filter_understory_ctg.LAScluster, height = height,
                            remove_stems = remove_stems, .options = options)
   return(output)
 }

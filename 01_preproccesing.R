@@ -93,7 +93,7 @@ scan6_path  <- prepare_scan("ScanPos006 - SINGLESCANS - 210503_103753 - Cloud.la
 # am besten fand ich: 0.1 -> äquivalent zu etwa 15cm Radius
 # wenn noch kleiner, verschwinden viele Astspitzen & Boden am Hang, hab Angst um Heidelbeere Ästchen
 
-noise_filter <- function(path, res) {
+filter_noise <- function(path, res) {
   scan <- readTLSLAS(path)
   scan <- scan %>%
     # classify noise
@@ -107,11 +107,11 @@ noise_filter <- function(path, res) {
 }
 
 resolution <- 0.1
-scan2_path_noise  <- noise_filter(scan2_path, resolution)
-scan3_path_noise  <- noise_filter(scan3_path, resolution)
-scan4_path_noise  <- noise_filter(scan4_path, resolution)
-scan5_path_noise  <- noise_filter(scan5_path, resolution)
-scan6_path_noise  <- noise_filter(scan6_path, resolution)
+scan2_path_noise  <- filter_noise(scan2_path, resolution)
+scan3_path_noise  <- filter_noise(scan3_path, resolution)
+scan4_path_noise  <- filter_noise(scan4_path, resolution)
+scan5_path_noise  <- filter_noise(scan5_path, resolution)
+scan6_path_noise  <- filter_noise(scan6_path, resolution)
 
 ################################################################################
 # CLIP EXAMPLES

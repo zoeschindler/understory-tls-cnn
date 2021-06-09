@@ -19,7 +19,7 @@ path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"  # single area
 
 # get all relevant raster paths
 raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE, full.names=TRUE)
-raster_list <- raster_list[!grepl("nDSM_unscaled", raster_list)]  # reove unscales nDSM from list
+raster_list <- raster_list[!grepl("nDSM_filtering", raster_list)]  # reove unscales nDSM from list
 raster_list <- raster_list[!grepl("ortho", raster_list)]  # I want to keep this anyway
 raster_list <- raster_list[!grepl("temp", raster_list)]  # remove temporary files
 
