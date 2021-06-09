@@ -132,7 +132,7 @@ area_retile_ctg.LAScatalog <- function(las, area) {
   options <- list(
     need_output_file = TRUE,  # output path necessary
     need_buffer = FALSE,  # buffer not necessary
-    automerge = FALSE)  # combine outputs
+    automerge = TRUE)  # combine outputs
   # execute & return
   output  <- catalog_apply(las, area_retile_ctg.LAScluster, area = area, .options = options)
   return(output)
