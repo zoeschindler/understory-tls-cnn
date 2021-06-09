@@ -20,8 +20,7 @@ clip_these <- c("nDSM", "ortho", "point_density", "reflectance_mean")  # TODO: t
 
 # set parameter
 tile_size <- 0.5
-#crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +vunits=m +no_defs"
-crs_raster_las <- CRS("+init=EPSG:25832")
+crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +no_defs"
 
 ################################################################################
 # HELPER FUNCTIONS
@@ -337,7 +336,7 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, selection, tile_s
 # EXECUTION
 ################################################################################
 
-# TODO: eventuell markieren, dass überlappende immer nur ins gleiche Datenset dürfen,
+# TODO: eventuell markieren, dass Ã¼berlappende immer nur ins gleiche Datenset dÃ¼rfen,
 #       oder nur raus werfen ab gewissen overlap Prozent
 #       -> 8 plots would be removed due to overlap -> okay
 
