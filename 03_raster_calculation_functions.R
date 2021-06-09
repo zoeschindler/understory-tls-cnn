@@ -194,9 +194,9 @@ filter_understory_ctg.LAScluster <- function(las, height, remove_stems) {
   voxels$V1[is.na(voxels$V1)] <- 0
   # convert coordinates to [cm]
   # because otherwise R adds decimal places and makes this crash
-  voxels$X <- as.integer(round(voxels$X,2)*100)
-  voxels$Y <- as.integer(round(voxels$Y,2)*100)
-  voxels$Z <- as.integer(round(voxels$Z,2)*100)
+  voxels$X <- as.integer(round(voxels$X*100))
+  voxels$Y <- as.integer(round(voxels$Y*100))
+  voxels$Z <- as.integer(round(voxels$Z*100))
   # loop from lowest to highest z value, start at 0.5 m height
   z_loop_vals <- sort(unique(voxels$Z))[9:length(unique(voxels$Z))]
   for (z_val in z_loop_vals) {
