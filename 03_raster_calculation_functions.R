@@ -226,7 +226,7 @@ filter_understory_ctg.LAScluster <- function(las, height, remove_stems) {
   # for each (filtered) vertical voxel layer, create a raster
   for (z_val in z_loop_vals) {
     # create raster
-    z_subset <- voxels[as.integer(voxels$Z*100)==z_val,]
+    z_subset <- voxels[as.integer(round(voxels$Z*100))==z_val,]
     z_subset <- as.data.frame(z_subset)[,c(1,2,4)]
     new_raster <- rasterFromXYZ(z_subset)
     crs(new_raster) <- crs(las)

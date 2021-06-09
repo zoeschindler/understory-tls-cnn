@@ -17,9 +17,8 @@ path_plot <- "D:/Masterarbeit_Zoe/4_Daten/vegetation/Export_ODK_clean_checked.km
 # TODO: this is dummy data
 tls_set <- c("nDSM", "reflectance", "point_density")
 rgb_set <- c("ortho")
-geo_set <- c("curvature_mean")
-# all_set <- c(tls_set, rgb_set, geo_set)
-all_set <- c("nDSM", "ortho", "point_density", "reflectance_mean")
+geo_set <- c("geometry")
+all_set <- c(tls_set, rgb_set, geo_set)
 
 # set names and folder names for each combination
 combo_1 <- c()

@@ -136,7 +136,7 @@ plan(sequential)
 ################################################################################
 
 # use multiple cores
-plan(multisession, workers=7L)
+plan(multisession, workers=11L)
 
 # get all area IDs
 area_IDs <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=".las")
@@ -183,11 +183,11 @@ for (area_ID in area_IDs) {
   # set options
   opt_chunk_buffer(ctg_normalized) <- buffer_size
   opt_chunk_size(ctg_normalized) <- chunk_size
-  check_create_dir(paste0(dirname(path_points), "/03_understory_stems"))
-  opt_output_files(ctg_normalized) <- paste0(dirname(path_points), "/03_understory_stems/area_", area_ID, "_understory_stems_{ID}")
+  check_create_dir(paste0(dirname(path_points), "/04_understory_stems"))
+  opt_output_files(ctg_normalized) <- paste0(dirname(path_points), "/04_understory_stems/area_", area_ID, "_understory_stems_{ID}")
   
   # execute
-  ctg_understory <- remove_understory_ctg.LAScatalog(ctg_normalized, height=3, remove_stems=FALSE)
+  ctg_understory <- filter_understory_ctg.LAScatalog(ctg_normalized, height=3, remove_stems=FALSE)
   warnings()
   if (is.list(ctg_understory)) {
     # if a list is returned, open the resulting list

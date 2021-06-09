@@ -336,7 +336,7 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, selection, tile_s
 # EXECUTION
 ################################################################################
 
-# TODO: eventuell markieren, dass Ã¼berlappende immer nur ins gleiche Datenset dÃ¼rfen,
+# TODO: eventuell markieren, dass überlappende immer nur ins gleiche Datenset dürfen,
 #       oder nur raus werfen ab gewissen overlap Prozent
 #       -> 8 plots would be removed due to overlap -> okay
 
