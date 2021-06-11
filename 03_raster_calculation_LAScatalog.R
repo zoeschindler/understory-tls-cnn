@@ -182,7 +182,7 @@ for (area_ID in area_IDs) {
 
 for (area_ID in area_IDs) {
   # print, which area is processed
-  print(paste0("... clipping area ", area_IDs))
+  print(paste0("... filtering area ", area_IDs))
   
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=paste0("area_", area_ID), full.names=TRUE)
