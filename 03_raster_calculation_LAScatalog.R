@@ -17,7 +17,7 @@ source("D:/Masterarbeit_Zoe/5_Analyse/03_raster_calculation_functions.R")
 # set paths
 path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"  # output
 check_create_dir(path_rasters)
-path_points <- "D:/Masterarbeit_Zoe/4_Daten/points/actual_data/day1.laz"  # input
+path_points <- "D:/Masterarbeit_Zoe/4_Daten/points/actual_data/day2.laz"  # input
 path_area <- "D:/Masterarbeit_Zoe/4_Daten/sites/convex/area_polygons.shp"
 
 # set chunk parameters
@@ -99,13 +99,16 @@ plan(sequential)
 ################################################################################
 
 # use multiple cores
-plan(multisession, workers=7L)
+plan(multisession, workers=5L)
 
 # get all area IDs
 area_IDs <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=".las")
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 for (area_ID in area_IDs) {
+  # print, which area is processed
+  print(paste0("... normalizing area ", area_ID))
+  
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=paste0("area_", area_ID), full.names=TRUE)
   file_list <- file_list[grepl(".las", file_list)]
@@ -136,7 +139,7 @@ plan(sequential)
 ################################################################################
 
 # use multiple cores
-plan(multisession, workers=11L)
+plan(multisession, workers=7L)
 
 # get all area IDs
 area_IDs <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=".las")
@@ -148,6 +151,9 @@ area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_"
 # height: 2m, remove stems: yes
 
 for (area_ID in area_IDs) {
+  # print, which area is processed
+  print(paste0("... filtering area ", area_ID))
+  
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=paste0("area_", area_ID), full.names=TRUE)
   file_list <- file_list[grepl(".las", file_list)]
@@ -175,6 +181,9 @@ for (area_ID in area_IDs) {
 # height: 3m, remove stems: no
 
 for (area_ID in area_IDs) {
+  # print, which area is processed
+  print(paste0("... clipping area ", area_IDs))
+  
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=paste0("area_", area_ID), full.names=TRUE)
   file_list <- file_list[grepl(".las", file_list)]

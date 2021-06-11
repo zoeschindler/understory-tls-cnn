@@ -98,7 +98,7 @@ if (clean) {
   # deleting points
   final <- final[substr(final$veg_type,1,8) != "Endpunkt",] # end point
   final <- final[final$veg_type != "Schreibtisch",] # test point
-  final <- final[final$veg_type != "Stechpalme",] # only once
+  final <- final[final$veg_type != "Stechpalme",] # only once + too small
   final <- final[final$veg_ID != 940,]  # way to far away
   # renaming points
   final$veg_type[final$veg_type=="fir"] <- "spruce" # too dumb for fir / spruce
@@ -272,10 +272,16 @@ if (clean) {
   # read in csv with IDs and new labels of wrongly labeled points
   results <- read.csv("Export_ODK_clean_wrong_labels.csv")
   
+  # plots 258/726/917/937: point clouds checked due to differences label/photo
+  results$label[results$plot_ID == 258] <- "spruce"
+  results$label[results$plot_ID == 726] <- "blueberry"
+  results$label[results$plot_ID == 917] <- "spruce"
+  results$label[results$plot_ID == 937] <- "mixed"
+  
   # delete "correct"
   results <- results[results$label!="correct",]
-  delete_these <- results$plot_ID[results$label == "too_small" | results$label == "mixed" | results$label == "check_cloud"]
-  relabel_these <- results[results$label != "too_small" & results$label != "mixed" & results$label != "check_cloud",]
+  delete_these <- results$plot_ID[results$label == "too_small" | results$label == "mixed"]
+  relabel_these <- results[results$label != "too_small" & results$label != "mixed",]
   
   # change & save csv
   new_csv <- read.csv("Export_ODK_clean.csv")
@@ -285,6 +291,8 @@ if (clean) {
     new_label <- relabel_these$label[i]
     new_csv$veg_type[new_csv$veg_ID == plot_id] <- new_label
   }
+  # change "unter kleinen Fichten" to "spruce"
+  new_csv$veg_type[grepl("unter kleinen Fichten", new_csv$veg_type)] <- "spruce"
   write.csv(new_csv, "Export_ODK_clean_checked.csv")
   
   # change & save kml
@@ -302,6 +310,8 @@ if (clean) {
     }
   }
   new_kml <- new_kml[-delete_indices,]
+  # change "unter kleinen Fichten" to "spruce"
+  new_kml$Name[grepl("unter kleinen Fichten", new_kml$Name)] <- "spruce"
   st_write(new_kml, "Export_ODK_clean_checked.kml", delete_layer = T)
 }
 

@@ -91,9 +91,9 @@ metric_reflectance <- function(r) {
   # necessary for raster_intensity
   # returns statistics of reflectances
   reflectances = list(
-    mean = ifelse(length(r)==0, NA, mean(r)),
-    sd = ifelse(length(r)==0, NA, sd(r)),
-    max = ifelse(length(r)==0, NA, max(r))
+    mean = ifelse(length(r)==0, NA, mean(r, na.rm=TRUE)),
+    sd = ifelse(length(r)==0, NA, sd(r, na.rm=TRUE)),
+    max = ifelse(length(r)==0, NA, max(r, na.rm=TRUE))
   )
   return(reflectances)
 }
@@ -159,8 +159,8 @@ normalize_ctg.LAScluster <- function(las) {
 normalize_ctg.LAScatalog <- function(las) {
   # returns normalized point cloud (LAS catalog)
   # undo previous selections
-  opt_select(las) <-  "*"
-  opt_stop_early(las) <- FALSE  # otherwise it stops when chunks at the border are too small
+  opt_select(las) <-  "* -t"
+  # opt_stop_early(las) <- FALSE  # otherwise it stops when chunks at the border are too small
   # set paramters
   options <- list(
     need_output_file = TRUE,  # output path necessary
@@ -198,7 +198,8 @@ filter_understory_ctg.LAScluster <- function(las, height, remove_stems) {
   voxels$Y <- as.integer(round(voxels$Y*100))
   voxels$Z <- as.integer(round(voxels$Z*100))
   # loop from lowest to highest z value, start at 0.5 m height
-  z_loop_vals <- sort(unique(voxels$Z))[9:length(unique(voxels$Z))]
+  # z_loop_vals <- sort(unique(voxels$Z))[9:length(unique(voxels$Z))]
+  z_loop_vals <- seq(50, max(unique(voxels$Z)), by=10)
   for (z_val in z_loop_vals) {
     # loop through every non-empty voxel with this z value
     z_loop_vox <- voxels[voxels$Z == z_val & voxels$V1 == 1,]
