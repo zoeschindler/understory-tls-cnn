@@ -7,19 +7,19 @@
 # for this part, all rasters must be computed and normalized
 # selecting the rasters must be done manually
 
-# TODO: actually execute this for the right datasets!
+# TODO: actually execute this for the right dataset!
 
 # load packages
 library(raster)  # for rasters
 library(sp)  # for spatial objects
 library(Hmisc)  # for cluster analysis
 
-# path_rasters  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters_copy"  # multiple areas
-path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"  # single area
+# set path
+path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"
 
 # get all relevant raster paths
 raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE, full.names=TRUE)
-raster_list <- raster_list[!grepl("nDSM_filtering", raster_list)]  # reove unscales nDSM from list
+raster_list <- raster_list[!grepl("nDSM_filtering", raster_list)]  # remove unscales nDSM from list
 raster_list <- raster_list[!grepl("ortho", raster_list)]  # I want to keep this anyway
 raster_list <- raster_list[!grepl("temp", raster_list)]  # remove temporary files
 
@@ -35,7 +35,7 @@ for (name in raster_list) {
   name <- name[[1]][length(name[[1]])-1]
   area_names <- c(area_names, name)
 }
-unique_areas <- unique(area_names)
+unique_areas <- as.numeric(unique(area_names))
 
 # stack rasters (of same area respectively)
 raster_stacks <- c()
@@ -45,14 +45,14 @@ for (area in unique_areas) {
   rm(single_stack)
 }
 
-# change the band names so they match & are short
+# change the band names so they are the same for ever area & are short
 band_names <- names(raster_stacks[[1]])  # assumes all have same rasters available
 new_band_names <- c()
 for (name in band_names) {
-  name <- strsplit(name, "[.]")[[1]][2]
   name <- strsplit(name, "_")
   name <- name[[1]][1:2]
-  name <- paste(name[1], name[2], sep="_")
+  if ("area" %in% name) {name <- name[1]}
+  else{name <- paste(name[1], name[2], sep="_")}
   new_band_names <- c(new_band_names, name)
 }
 for (i in 1:length(raster_stacks)) {

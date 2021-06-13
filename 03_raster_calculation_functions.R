@@ -180,10 +180,12 @@ filter_understory_ctg.LAScluster <- function(las, height, remove_stems) {
   if (is.empty(las)) return(NULL)
   # get & remove stem trees
   if (remove_stems) {
-    map <- treeMap(las, map.hough())
-    las <- treePoints(las, map, trp.crop())
-    las <- stemPoints(las, stm.hough(pixel_size = 0.01))
-    las <- filter_poi(las, Stem == FALSE)
+    try(expr = {
+      map <- treeMap(las, map.hough())
+      las <- treePoints(las, map, trp.crop())
+      las <- stemPoints(las, stm.hough(pixel_size = 0.01))
+      las <- filter_poi(las, Stem == FALSE)
+    }, silent = T)
   }
   # remove everything below certain height
   las <- filter_poi(las, Z <= height)
@@ -243,6 +245,7 @@ filter_understory_ctg.LAScluster <- function(las, height, remove_stems) {
   rm(unchanged_las); gc()
   # delete buffer & return points
   las <- filter_poi(las, buffer == 0)
+  if (is.empty(las)) return(NULL)
   return(las)
 }
 
@@ -690,7 +693,7 @@ raster_create_all <- function(point_cloud, resolution, output_dir, output_name, 
 # CREATE ALL RASTERS - LAS CATALOGS
 ################################################################################
 
-raster_create_all_ctg <- function(ctg, resolution, output_dir, output_name, rescale=TRUE, saving=TRUE) {
+raster_create_all_ctg <- function(ctg, resolution, output_dir, output_name, rescale=FALSE, saving=TRUE) {
   # creates all rasters
   # set rescale = TRUE if it should be normalized between 0 and 1
   # set saving = TRUE if raster should be saved, set saving = FALSE to return raster as object

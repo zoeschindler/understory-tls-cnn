@@ -9,9 +9,9 @@ library(sf)
 library(raster)
 
 # set paths
-path_clips <- "D:/Masterarbeit_Zoe/4_Daten/clips"  # input
-path_output <- "D:/Masterarbeit_Zoe/4_Daten/models/input"  # output
-path_plot <- "D:/Masterarbeit_Zoe/4_Daten/vegetation/Export_ODK_clean_checked.kml" # input
+path_clips <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"  # input
+path_output <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models/input"  # output
+path_plot <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_checked.kml" # input
 
 # set folder names for each input type
 # TODO: this is dummy data

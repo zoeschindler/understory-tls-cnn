@@ -182,7 +182,7 @@ for (area_ID in area_IDs) {
 
 for (area_ID in area_IDs) {
   # print, which area is processed
-  print(paste0("... filtering area ", area_IDs))
+  print(paste0("... filtering area ", area_ID))
   
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=paste0("area_", area_ID), full.names=TRUE)
@@ -196,7 +196,7 @@ for (area_ID in area_IDs) {
   opt_output_files(ctg_normalized) <- paste0(dirname(path_points), "/04_understory_stems/area_", area_ID, "_understory_stems_{ID}")
   
   # execute
-  ctg_understory <- filter_understory_ctg.LAScatalog(ctg_normalized, height=3, remove_stems=FALSE)
+  ctg_understory <- filter_understory_ctg.LAScatalog(ctg_normalized, height=2.5, remove_stems=FALSE)
   warnings()
   if (is.list(ctg_understory)) {
     # if a list is returned, open the resulting list
@@ -215,8 +215,8 @@ plan(sequential)
 ################################################################################
 
 # use multiple cores
-# plan(multisession, workers=6L, gc=T)
-# computer unhappy with multisession, because eigenvalue calculation also specifies cores
+plan(multisession, workers=7L)
+# computer unhappy with multisession & geometry raster calculation though!
 
 ################################################################################
 
@@ -227,7 +227,7 @@ area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_"
 for (area_ID in area_IDs) {
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/03_understory"), pattern=paste0("area_", area_ID), full.names=TRUE)
-  file_list <- file_list[grepl("las", file_list)]
+  file_list <- file_list[grepl(".las", file_list)]
   ctg_understory <- readTLSLAScatalog(file_list)
   
   # set options
@@ -248,7 +248,7 @@ area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_"
 for (area_ID in area_IDs) {
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/04_understory_stems"), pattern=paste0("area_", area_ID), full.names=TRUE)
-  file_list <- file_list[grepl("las", file_list)]
+  file_list <- file_list[grepl(".las", file_list)]
   ctg_understory <- readTLSLAScatalog(file_list)
   
   # set options
@@ -264,6 +264,6 @@ for (area_ID in area_IDs) {
 ################################################################################
 
 # use single core
-# plan(sequential)
+plan(sequential)
 
 ################################################################################

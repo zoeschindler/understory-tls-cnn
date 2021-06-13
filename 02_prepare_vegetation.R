@@ -100,6 +100,8 @@ if (clean) {
   final <- final[final$veg_type != "Schreibtisch",] # test point
   final <- final[final$veg_type != "Stechpalme",] # only once + too small
   final <- final[final$veg_ID != 940,]  # way to far away
+  final <- final[final$veg_ID != 308,]  # way to far away
+  final <- final[final$veg_ID != 292,]  # way to far away
   # renaming points
   final$veg_type[final$veg_type=="fir"] <- "spruce" # too dumb for fir / spruce
   final$veg_type[final$veg_type=="sprouce"] <- "spruce" # typo
