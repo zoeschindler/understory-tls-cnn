@@ -15,12 +15,14 @@ path_clips <- "D:/Masterarbeit_Zoe/4_Daten/clips"  # output
 path_nDSM <- paste0(path_rasters, "/nDSM_filtering")  # input
 path_points <- "D:/Masterarbeit_Zoe/4_Daten/points/actual_data/04_understory_stems"  # input
 
-# rasters to be clipped
-clip_these <- c("nDSM", "ortho", "point_density", "reflectance_mean")  # TODO: this is dummy data
+# rasters to be clipped, results from collinearity check
+clip_these <- c("ortho", "anisotropy_max", "curvature_max", "linearity_max",
+                "linearity_sd", "planarity_mean", "planarity_sd", "nDSM",
+                "point_density", "reflectance_mean", "reflectance_sd")
 
 # set parameter
 tile_size <- 0.5
-crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +no_defs"
+crs_raster_las <- as.character(crs(readTLSLAScatalog(path_points)))
 
 ################################################################################
 # HELPER FUNCTIONS
