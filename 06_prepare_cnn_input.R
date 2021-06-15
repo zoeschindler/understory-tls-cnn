@@ -9,12 +9,17 @@ library(sf)
 library(raster)
 
 # set paths
-path_clips <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"  # input
-path_output <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models/input"  # output
-path_plot <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_checked.kml" # input
+path_clips <- "D:/Masterarbeit_Zoe/4_Daten/clips"  # input
+path_output <- "D:/Masterarbeit_Zoe/4_Daten/models/input"  # output
+path_plot <- "D:/Masterarbeit_Zoe/4_Daten/vegetation/Export_ODK_clean_checked.kml" # input
+
+# set parameters
+crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +vunits=m +no_defs"
+raster_amount <- length(c("ortho", "anisotropy_max", "curvature_max", "linearity_max",
+                          "linearity_sd", "planarity_mean", "planarity_sd", "nDSM",
+                          "point_density", "reflectance_mean", "reflectance_sd"))
 
 # set folder names for each input type
-# TODO: this is dummy data
 tls_set <- c("nDSM", "reflectance", "point_density")
 rgb_set <- c("ortho")
 geo_set <- c("geometry")
@@ -89,7 +94,7 @@ stack_save_clips <- function(clip_dir, plot_path, output_dir, selection_rasters,
   }
   clip_list <- clip_list[contained]
   # load vegetation plots & create one subfolder for each label
-  plots <- st_read(plot_path)
+  plots <- st_transform(st_read(plot_path), crs_raster_las)
   for (label in unique(plots$Name)) {
     check_create_dir(paste0(output_dir, "/", label))
   }
@@ -109,7 +114,7 @@ stack_save_clips <- function(clip_dir, plot_path, output_dir, selection_rasters,
     plot_stack <- stack(plot_rasters)
     # determine label & save in according folder
     plot_label <- plots$Name[plot_idx]
-    writeRaster(plot_stack, paste0(output_dir, "/", plot_label, "/", plot_ID, ".tif"))
+    writeRaster(plot_stack, paste0(output_dir, "/", plot_label, "/", plot_label, "_", plot_ID, ".tif"))
   }
 }
 
@@ -117,8 +122,12 @@ stack_save_clips <- function(clip_dir, plot_path, output_dir, selection_rasters,
 # EXECUTION
 ################################################################################
 
+path_clips <- "D:/Masterarbeit_Zoe/4_Daten/clips_unfiltered"  # input
+path_output <- "D:/Masterarbeit_Zoe/4_Daten/models/input_unfiltered"  # output
+path_plot <- "D:/Masterarbeit_Zoe/4_Daten/vegetation/Export_ODK_clean_checked.kml" # input
+
 check_create_dir(path_output)
-full_IDs <- get_list_full_plots(path_clips, length(all_set))
+full_IDs <- get_list_full_plots(path_clips, raster_amount)
 stack_save_clips(path_clips, path_plot, paste0(path_output, "/", combo_1$name), combo_1$folders, full_IDs)
 stack_save_clips(path_clips, path_plot, paste0(path_output, "/", combo_2$name), combo_2$folders, full_IDs)
 stack_save_clips(path_clips, path_plot, paste0(path_output, "/", combo_3$name), combo_3$folders, full_IDs)

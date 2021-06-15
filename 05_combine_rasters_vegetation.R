@@ -125,50 +125,51 @@ filter_midstory_nDSM <- function(plots, nDSM_unscaled_dir, tile_size) {
 
 ################################################################################
 
-# filter_midstory_points <- function(plots, point_cloud_dir, tile_size) {
-#   # check if there are empty vertical bins
-#   # (assumption: flying branches from overstory lead to empty vertical bins)
-#   # otherwise: delete
-#   print("... removing midstory points")
-#   # empty list for storing "bad" points
-#   remove_plots <- c()
-#   # load point clouds as LAScatalog
-#   las <- readTLSLAScatalog(point_cloud_dir)  # from all areas combined
-#   # calculate edge length (divisible by two)
-#   edge <- ((tile_size*100)%/%2)/100
-#   # loop through plots
-#   for (idx in 1:nrow(plots)) {
-#     plot <- plots[idx,]
-#     # clip point cloud with point + edge
-#     center_x <- round(st_coordinates(plot)[,1], 2) # round on cm
-#     center_y <- round(st_coordinates(plot)[,2], 2) # round on cm
-#     rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge,
-#                           ymin=center_y-edge, ymax=center_y+edge))
-#     clip <- clip_roi(las, rectangle)
-#     # bin the points, 10cm vertical bins until 2m height
-#     bin_boolean <- c()
-#     for (i in 1:20) {
-#       upper_bound <- (i * 10)/100
-#       lower_bound <- (upper_bound*100 - 10)/100
-#       bin <- 0 < length(filter_poi(clip, Z >= lower_bound & Z < upper_bound)@data$X)  # TRUE: points, FALSE: no points
-#       bin_boolean <- c(bin_boolean, bin)
-#     }
-#     # check if there are empty bins between
-#     if (mean(bin_boolean) == 1) {
-#       remove_plots <- rbind(remove_plots, plot)
-#     }
-#   }
-#   # delete midstory points
-#   keep_plots <- plots[!(plots$Description %in% remove_plots$Description),]
-#   # save filtered points
-#   return(list(keep = keep_plots, remove = remove_plots))
-# }
+filter_midstory_points <- function(plots, point_cloud_dir, tile_size) {
+  # check if there are empty vertical bins
+  # (assumption: flying branches from overstory lead to empty vertical bins)
+  # otherwise: delete
+  print("... removing midstory points")
+  # empty list for storing "bad" points
+  remove_plots <- c()
+  # load point clouds as LAScatalog
+  las <- readTLSLAScatalog(point_cloud_dir)  # from all areas combined
+  # calculate edge length (divisible by two)
+  edge <- ((tile_size*100)%/%2)/100
+  # loop through plots
+  for (idx in 1:nrow(plots)) {
+    plot <- plots[idx,]
+    # clip point cloud with point + edge
+    center_x <- round(st_coordinates(plot)[,1], 2) # round on cm
+    center_y <- round(st_coordinates(plot)[,2], 2) # round on cm
+    rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge,
+                          ymin=center_y-edge, ymax=center_y+edge))
+    clip <- clip_roi(las, rectangle)
+    # bin the points, 10cm vertical bins until 2m height
+    bin_boolean <- c()
+    for (i in 1:20) {
+      upper_bound <- (i * 10)/100
+      lower_bound <- (upper_bound*100 - 10)/100
+      bin <- 0 < length(filter_poi(clip, Z >= lower_bound & Z < upper_bound)@data$X)  # TRUE: points, FALSE: no points
+      bin_boolean <- c(bin_boolean, bin)
+    }
+    # check if there are empty bins between
+    if (mean(bin_boolean) == 1) {
+      remove_plots <- rbind(remove_plots, plot)
+    }
+  }
+  # delete midstory points
+  keep_plots <- plots[!(plots$Description %in% remove_plots$Description),]
+  # save filtered points
+  return(list(keep = keep_plots, remove = remove_plots))
+}
 
 ################################################################################
 
 filter_midstory_visually <- function(plots, point_cloud_dir, tile_size) {
   # check visually & manually if plot should be kept
   print("... removing midstory points")
+  print(paste0("... checking ", nrow(plots), " plots"))
   # empty list for storing "bad" / "good" points
   remove_plots <- c()
   keep_plots <- c()
@@ -214,10 +215,13 @@ filter_midstory_all <- function(plot_path, nDSM_unscaled_dir, point_cloud_dir, t
   # filter with nDSM
   out_ndsm <- filter_midstory_nDSM(plots, nDSM_unscaled_dir, tile_size)
   plots <- out_ndsm[[2]]
+  # filter with ertical bins
+  out_points <- filter_midstory_points(plots, point_cloud_dir, tile_size)
+  plots <- out_points[[2]]
   # filter visually & manually
   out_visual <- filter_midstory_visually(plots, point_cloud_dir, tile_size)
   # merge all plots to be kept
-  keep_plots <- rbind(out_ndsm[[1]], out_visual[[1]])
+  keep_plots <- rbind(out_ndsm[[1]], out_points[[1]], out_visual[[1]])
   # save & return path to filtered kml
   st_write(keep_plots, paste0(substr(plot_path, 1, nchar(plot_path)-4), "_filtered.kml"), delete_layer = T)
   return(paste0(substr(plot_path, 1, nchar(plot_path)-4), "_filtered.kml"))
@@ -342,8 +346,11 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, selection, tile_s
 #       oder nur raus werfen ab gewissen overlap Prozent
 #       -> 8 plots would be removed due to overlap -> okay
 
-new_path_vegetation <- filter_midstory_all(path_vegetation, path_nDSM, path_points, tile_size)
-newer_path_vegetation <- filter_overlaps(new_path_vegetation, tile_size)
-raster_clip_all(path_rasters, newer_path_vegetation, path_clips, clip_these, tile_size)
+# new_path_vegetation <- filter_midstory_all(path_vegetation, path_nDSM, path_points, tile_size)
+# newer_path_vegetation <- filter_overlaps(new_path_vegetation, tile_size)
+# raster_clip_all(path_rasters, newer_path_vegetation, path_clips, clip_these, tile_size)
+
+path_clips <- "D:/Masterarbeit_Zoe/4_Daten/clips_unfiltered"
+raster_clip_all(path_rasters, path_vegetation, path_clips, clip_these, tile_size)
 
 ################################################################################

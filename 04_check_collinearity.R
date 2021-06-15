@@ -247,9 +247,15 @@ biplot(pca_remains, cex=c(0.5,1))#, xlim=c(-0.05, 0.05), ylim=c(-0.05, 0.05))
 # keep:
 keep_names <- names(raster_df[-c(18,6,3,8,10,5,2,14,13,15)])
 print(keep_names)
+# "ortho", "anisotropy_max", "curvature_max", "linearity_max",
+# "linearity_sd", "planarity_mean", "planarity_sd", "nDSM",
+# "point_density", "reflectance_mean", "reflectance_sd")
 
 # remove:
 remove_names <- names(raster_df[c(18,6,3,8,10,5,2,14,13,15)])
 print(remove_names)
+# "reflectance_max", "curvature_sd", "anisotropy_sd", "linearity_mean",
+# "planarity_max", "curvature_mean", "anisotropy_mean", "sphericity_mean",
+# "sphericity_max", "sphericity_sd"
 
 ################################################################################
