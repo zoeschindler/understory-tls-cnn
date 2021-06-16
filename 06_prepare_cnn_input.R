@@ -9,9 +9,9 @@ library(sf)
 library(raster)
 
 # set paths
-path_clips <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/clips"  # input
-path_output <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/models/input"  # output
-path_plot <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/vegetation/Export_ODK_clean_checked.kml" # input
+path_clips <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"  # input
+path_output <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models/input"  # output
+path_plot <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_checked.kml" # input
 
 # set parameters
 crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +vunits=m +no_defs"
@@ -95,9 +95,9 @@ stack_save_clips <- function(clip_dir, plot_path, output_dir, selection_rasters,
   clip_list <- clip_list[contained]
   # load vegetation plots & create one subfolder for each label
   plots <- st_transform(st_read(plot_path), crs_raster_las)
-  for (label in unique(plots$Name)) {
-    check_create_dir(paste0(output_dir, "/", label))
-  }
+  # for (label in unique(plots$Name)) {
+  #   check_create_dir(paste0(output_dir, "/", label))
+  # }
   # extract all plot IDs from vegetation plots
   all_IDs <- c()
   for(idx in 1:nrow(plots)) {
@@ -105,7 +105,7 @@ stack_save_clips <- function(clip_dir, plot_path, output_dir, selection_rasters,
   }
   # loop through all selected plot IDs
   for (plot_ID in selection_IDs) {
-    # get row from vegetation plots where this ID is right
+    # get row from vegetation plots where this plot ID is same
     plot_idx <- which(all_IDs == plot_ID)
     # load & stack all clips of the plot
     plot_paths <- sort(clip_list[grepl(paste0("_", plot_ID, ".tif"), clip_list)])
@@ -114,7 +114,8 @@ stack_save_clips <- function(clip_dir, plot_path, output_dir, selection_rasters,
     plot_stack <- stack(plot_rasters)
     # determine label & save in according folder
     plot_label <- plots$Name[plot_idx]
-    writeRaster(plot_stack, paste0(output_dir, "/", plot_label, "/", plot_label, "_", plot_ID, ".tif"))
+    # writeRaster(plot_stack, paste0(output_dir, "/", plot_label, "/", plot_label, "_", plot_ID, ".tif"))
+    writeRaster(plot_stack, paste0(output_dir, "/", plot_label, "_", plot_ID, ".tif"))
   }
 }
 
