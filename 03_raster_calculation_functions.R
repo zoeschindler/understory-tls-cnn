@@ -28,9 +28,20 @@ check_create_dir <- function(path) {
 
 ################################################################################
 
+lowest_per_voxel <- function(X, Y, Z) {
+  # returns lowest point
+  id = which.min(Z)
+  values = list("original_X"= X[id],
+                "original_Y"= Y[id],
+                "original_Z"= Z[id])
+  return(values)
+}
+
+################################################################################
+
 # fast eigenvalue calculation
 # source: https://gis.stackexchange.com/questions/395916/get-eigenvalues-of-large-point-cloud-using-lidr
-Rcpp::sourceCpp("D:/Masterarbeit_Zoe/5_Analyse/eigen_decomposition.cpp")
+Rcpp::sourceCpp("C:/Users/Zoe/Documents/understory_classification/5_Analyse/eigen_decomposition.cpp")
 
 ################################################################################
 
@@ -140,14 +151,80 @@ area_retile_ctg.LAScatalog <- function(las, area) {
 
 ################################################################################
 
+dtm_ctg.LAScluster <- function(chunk) {
+  # returns normalized point cloud (LAS file)
+  # load the data
+  las <- readLAS(chunk)
+  if (is.empty(las)) return(NULL)
+  # classify ground points
+  las <- classify_ground(las, csf(class_threshold=0.3, cloth_resolution=0.3, sloop_smooth=TRUE))
+  # get with voxel metrics the lowest point
+  # 1m x 1m x 100m voxels, 100m height to avoid multiple voxels per x-y-square
+  las_voxels <- voxel_metrics(filter_ground(las), ~lowest_per_voxel(X, Y, Z), res=c(1,100))
+  # make filtered point cloud from voxel_metrics
+  filtered_las <- LAS(data=data.frame(X=las_voxels$original_X,
+                                      Y=las_voxels$original_Y,
+                                      Z=las_voxels$original_Z))
+  crs(filtered_las) <- crs(las)
+  filtered_las <- rbind()
+  # classify all filtered points as ground points
+  filtered_las <- classify_ground(filtered_las, csf(class_threshold=100, cloth_resolution=1, sloop_smooth=TRUE),
+                                  last_returns = FALSE)
+  # # TODO: check if all points classified as ground
+  if (nrow(filtered_las@data) != nrow(filter_ground(filtered_las)@data)) {
+    warning("Some ground voxels got lost after ground classification!")
+  }
+  # calculate dtm from filtered point cloud
+  dtm <- grid_terrain(filtered_las, tin(), res = 0.01)
+  # delete buffer
+  dtm <- crop(dtm, extent(chunk))
+  return(dtm)
+}
+
+dtm_ctg.LAScatalog <- function(las, output_dir, output_name) {
+  # returns normalized point cloud (LAS catalog)
+  # undo previous selections
+  opt_select(las) <-  "* -t"
+  # set paramters
+  options <- list(
+    need_output_file = FALSE,  # no output path necessary
+    need_buffer = TRUE,  # buffer necessary
+    automerge = TRUE,
+    raster_alignment = 0.01)  # combine outputs
+  # create output dir
+  check_create_dir(output_dir)
+  # execute & return
+  output  <- catalog_apply(las, dtm_ctg.LAScluster, .options = options)
+  # save merged output
+  writeRaster(output, paste0(output_dir, "/DTM_", output_name, ".tif"), overwrite = TRUE)
+}
+
+################################################################################
+
 normalize_ctg.LAScluster <- function(las) {
   # returns normalized point cloud (LAS file)
   # load the data
   las <- readLAS(las)
   if (is.empty(las)) return(NULL)
-  # classify & normalize
-  las <- classify_ground(las, csf(class_threshold = 0.3, cloth_resolution = 0.1, sloop_smooth = TRUE))  # has to be small due to smaller areas & heavy slope 
-  dtm <- grid_terrain(las, tin(), res = 0.01)  # if bigger, there are many artifacts
+  # classify ground points
+  las <- classify_ground(las, csf(class_threshold = 0.3, cloth_resolution = 0.3, sloop_smooth = TRUE))
+  # get with voxel metrics the lowest point
+  # 1m x 1m x 100m voxels, 100m height to avoid multiple voxels per x-y-square
+  las_voxels <- voxel_metrics(filter_ground(las), ~lowest_per_voxel(X, Y, Z), res=c(1,100))
+  # make filtered point cloud from voxel_metrics
+  filtered_las <- LAS(data=data.frame(X=las_voxels$original_X,
+                                      Y=las_voxels$original_Y,
+                                      Z=las_voxels$original_Z))
+  # classify all filtered points as ground points
+  filtered_las <- classify_ground(filtered_las, csf(class_threshold = 100, cloth_resolution = 1, sloop_smooth = TRUE),
+                                  last_returns = FALSE)
+  # check if all filtered points were classified as ground
+  if (nrow(filtered_las@data) != nrow(filter_ground(filtered_las)@data)) {
+    warning("Some ground voxels got lost after ground classification!")
+  }
+  # calculate dtm from filtered point cloud
+  dtm <- grid_terrain(filtered_las, tin(), res = 0.01)
+  # normalize height
   las <- normalize_height(las, dtm, na.rm = T)
   las <- filter_poi(las, Z >= -0.3)
   # delete buffer & return points
@@ -160,7 +237,6 @@ normalize_ctg.LAScatalog <- function(las) {
   # returns normalized point cloud (LAS catalog)
   # undo previous selections
   opt_select(las) <-  "* -t"
-  # opt_stop_early(las) <- FALSE  # otherwise it stops when chunks at the border are too small
   # set paramters
   options <- list(
     need_output_file = TRUE,  # output path necessary

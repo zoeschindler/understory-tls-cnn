@@ -9,11 +9,11 @@ library(lidR)
 library(sf)
 
 # set paths
-path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"  # input
-path_vegetation <- "D:/Masterarbeit_Zoe/4_Daten/vegetation/Export_ODK_clean_checked.kml"  # input
-path_clips <- "D:/Masterarbeit_Zoe/4_Daten/clips"  # output
+path_rasters  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters"  # input
+path_vegetation <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/vegetation/Export_ODK_clean_checked.kml"  # input
+path_clips <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/clips"  # output
 path_nDSM <- paste0(path_rasters, "/nDSM_filtering")  # input
-path_points <- "D:/Masterarbeit_Zoe/4_Daten/points/actual_data/04_understory_stems"  # input
+path_points <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/points/04_understory_stems"  # input
 
 # rasters to be clipped, results from collinearity check
 clip_these <- c("ortho", "anisotropy_max", "curvature_max", "linearity_max",
@@ -342,7 +342,7 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, selection, tile_s
 # EXECUTION
 ################################################################################
 
-# TODO: eventuell markieren, dass überlappende immer nur ins gleiche Datenset dürfen,
+# TODO: eventuell markieren, dass ?berlappende immer nur ins gleiche Datenset d?rfen,
 #       oder nur raus werfen ab gewissen overlap Prozent
 #       -> 8 plots would be removed due to overlap -> okay
 

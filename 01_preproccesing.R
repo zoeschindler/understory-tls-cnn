@@ -13,8 +13,8 @@ library(lidR)
 library(sf)
 
 # set path
-setwd("D:/Masterarbeit_Zoe/4_Daten/points")
-kml_path <- "D:/Masterarbeit_Zoe/4_Daten/points/2021-05-03 wino np earth.kml"
+setwd("C:/Users/Zoe/Documents/understory_classification/4_Daten/points")
+kml_path <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/scan_positions/2021-05-03 wino np earth.kml"
 # *.asc to *.las in CC
 # *.kmz to *.kml in Google Earth
 

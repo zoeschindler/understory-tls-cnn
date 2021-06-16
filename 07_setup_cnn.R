@@ -42,7 +42,7 @@ n_classes <- 7  # or 5 if without rock & grass
 
 lenet5 <- keras_model_sequential() %>%
   # band selector
-  layer_conv_2d(input_shape = c(50,50,n_in_layers), filters = n_band_selector,
+  layer_conv_2d(input_shape = c(50,50,n_input_layers), filters = n_band_selector,
                 kernel_size = c(1,1), strides = c(1,1), padding="same") %>%
   # main model
   layer_conv_2d(filters = 32, kernel_size = c(5,5), activation = "relu", padding="same") %>%
@@ -71,7 +71,7 @@ lenet5 <- keras_model_sequential() %>%
 
 alexnet <- keras_model_sequential() %>%
   # band selector
-  layer_conv_2d(input_shape = c(50,50,n_in_layers), filters = n_band_selector,
+  layer_conv_2d(input_shape = c(50,50,n_input_layers), filters = n_band_selector,
                 kernel_size = c(1,1), strides = c(1,1), padding="same") %>%
   # main model
   # block 1
@@ -106,7 +106,7 @@ alexnet <- keras_model_sequential() %>%
 
 vgg16 <- keras_model_sequential() %>%
   # band selector
-  layer_conv_2d(input_shape = c(50,50,n_in_layers), filters = n_band_selector,
+  layer_conv_2d(input_shape = c(50,50,n_input_layers), filters = n_band_selector,
                 kernel_size = c(1,1), strides = c(1,1), padding="same") %>%
   # main model
   # block 1

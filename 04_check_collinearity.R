@@ -13,7 +13,7 @@ library(sp)  # for spatial objects
 library(Hmisc)  # for cluster analysis
 
 # set path
-path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"
+path_rasters  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters"
 
 ################################################################################
 # HELPER FUNCTION

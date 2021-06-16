@@ -13,8 +13,8 @@ library(jpeg)
 library(raster)
 
 # set path
-area_dir <- "D:/Masterarbeit_Zoe/4_Daten/sites/convex"  # output
-home_dir <- "D:/Masterarbeit_Zoe/4_Daten/vegetation"  # input & output
+area_dir <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/sites/convex"  # output
+home_dir <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/vegetation"  # input & output
 setwd(home_dir)
 
 # clean the data?

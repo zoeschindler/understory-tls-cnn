@@ -8,11 +8,11 @@
 library(lidR)  # for point clouds, also loads sp & raster
 
 # load functions
-source("D:/Masterarbeit_Zoe/5_Analyse/03_raster_calculation_functions.R")
+source("C:/Users/Zoe/Documents/understory_classification/5_Analyse/03_raster_calculation_functions.R")
 
 # set paths
-path_points   <- "D:/Masterarbeit_Zoe/4_Daten/points/areaXY/testing.las"  # input
-path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"  # output
+path_points   <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/points/testing.las"  # input
+path_rasters  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters"  # output
 check_create_dir(path_rasters)
 
 # set variables

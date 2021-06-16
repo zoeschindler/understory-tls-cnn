@@ -12,18 +12,18 @@ library(future)
 library(raster)
 
 # load functions
-source("D:/Masterarbeit_Zoe/5_Analyse/03_raster_calculation_functions.R")
-
-# set paths
-path_rasters  <- "D:/Masterarbeit_Zoe/4_Daten/rasters"  # output
-check_create_dir(path_rasters)
-path_points <- "D:/Masterarbeit_Zoe/4_Daten/points/actual_data/day2.laz"  # input
-path_area <- "D:/Masterarbeit_Zoe/4_Daten/sites/convex/area_polygons.shp"
+source("C:/Users/Zoe/Documents/understory_classification/5_Analyse/03_raster_calculation_functions.R")
 
 # set chunk parameters
 chunk_size <- 15  # my RAM hates everything above, so I hate everything above
 buffer_size <- 1  # to avoid edge effects & not having enough points for interpolation
 raster_resolution <- 0.01
+
+# set paths
+path_rasters  <- paste0("C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters_", raster_resolution*100, "cm")  # output
+check_create_dir(path_rasters)
+path_points <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/points/day4.laz"  # input
+path_area <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/sites/convex/area_polygons.shp"
 
 # load data
 ctg <- readTLSLAScatalog(path_points)
@@ -95,6 +95,41 @@ plan(sequential)
 # warnings()
 
 ################################################################################
+# CALCULATE DTM
+################################################################################
+
+# use multiple cores
+plan(multisession, workers=11L)
+
+# get all area IDs
+area_IDs <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=".las")
+area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
+
+for (area_ID in area_IDs) {
+  # print, which area is processed
+  print(paste0("... calculating DTM of area ", area_ID))
+  
+  # read from folder
+  file_list <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=paste0("area_", area_ID), full.names=TRUE)
+  file_list <- file_list[grepl("[.]las", file_list)]
+  ctg_retiled <- readTLSLAScatalog(file_list)
+  
+  # set options
+  opt_chunk_buffer(ctg_retiled) <- buffer_size * 2  # otherwise there are holes!
+  opt_chunk_size(ctg_retiled) <- chunk_size
+
+  # execute
+  ctg_normalized <- dtm_ctg.LAScatalog(ctg_retiled, paste0(path_rasters, "/DTM"),
+                                       paste0("area_", area_ID))
+  warnings()
+}
+
+# use single core
+plan(sequential)
+
+# TODO: weird tile edge artifacts --> also in point cloud?
+
+################################################################################
 # NORMALIZE POINT CLOUDS
 ################################################################################
 
@@ -111,12 +146,12 @@ for (area_ID in area_IDs) {
   
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=paste0("area_", area_ID), full.names=TRUE)
-  file_list <- file_list[grepl(".las", file_list)]
+  file_list <- file_list[grepl("[.]las", file_list)]
   ctg_retiled <- readTLSLAScatalog(file_list)
   
   # set options
-  opt_chunk_buffer(ctg_retiled) <- buffer_size
-  opt_chunk_size(ctg_retiled) <- chunk_size
+  opt_chunk_buffer(ctg_retiled) <- buffer_size * 2  # otherwise there are holes in the dtm!
+  opt_chunk_size(ctg_retiled) <- chunk_size 
   check_create_dir(paste0(dirname(path_points), "/02_normalized"))
   opt_output_files(ctg_retiled) <- paste0(dirname(path_points), "/02_normalized/area_",
                                           area_ID, "_norm_{ID}")
@@ -156,7 +191,7 @@ for (area_ID in area_IDs) {
   
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=paste0("area_", area_ID), full.names=TRUE)
-  file_list <- file_list[grepl(".las", file_list)]
+  file_list <- file_list[grepl("[.]las", file_list)]
   ctg_normalized <- readTLSLAScatalog(file_list)
   
   # set options
@@ -186,7 +221,7 @@ for (area_ID in area_IDs) {
   
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=paste0("area_", area_ID), full.names=TRUE)
-  file_list <- file_list[grepl(".las", file_list)]
+  file_list <- file_list[grepl("[.]las", file_list)]
   ctg_normalized <- readTLSLAScatalog(file_list)
   
   # set options
@@ -227,7 +262,7 @@ area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_"
 for (area_ID in area_IDs) {
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/03_understory"), pattern=paste0("area_", area_ID), full.names=TRUE)
-  file_list <- file_list[grepl(".las", file_list)]
+  file_list <- file_list[grepl("[.]las", file_list)]
   ctg_understory <- readTLSLAScatalog(file_list)
   
   # set options
@@ -248,7 +283,7 @@ area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_"
 for (area_ID in area_IDs) {
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/04_understory_stems"), pattern=paste0("area_", area_ID), full.names=TRUE)
-  file_list <- file_list[grepl(".las", file_list)]
+  file_list <- file_list[grepl("[.]las", file_list)]
   ctg_understory <- readTLSLAScatalog(file_list)
   
   # set options
