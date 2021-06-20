@@ -297,6 +297,7 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, selection, tile_s
   # get all rasters within raster_dir (without unscaled nDSM)
   raster_list <- list.files(raster_dir, pattern=".tif", recursive=TRUE)
   raster_list <- raster_list[!grepl("nDSM_filtering", raster_list)]
+  raster_list <- raster_list[!grepl("DTM", raster_list)]
   raster_list <- raster_list[!grepl("temp", raster_list)]
   # calculate edge length (divisible by two)
   edge <- ((tile_size*100)%/%2)/100
