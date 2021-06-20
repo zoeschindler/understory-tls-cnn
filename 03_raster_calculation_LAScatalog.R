@@ -5,7 +5,7 @@
 ################################################################################
 
 # load packages
-library(lidR)  # for point clouds, also loads sp & raster
+library(lidR)
 library(rlas)
 library(sf)
 library(future)
@@ -20,10 +20,10 @@ buffer_size <- 1  # to avoid edge effects & not having enough points for interpo
 raster_resolution <- 0.01
 
 # set paths
-path_rasters  <- paste0("C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters_", raster_resolution*100, "cm")  # output
-check_create_dir(path_rasters)
 path_points <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/points/day4.laz"  # input
-path_area <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/sites/convex/area_polygons.shp"
+path_area   <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/sites/convex/area_polygons.shp"  # input
+path_rasters <- paste0("C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters_", raster_resolution*100, "cm")  # output
+check_create_dir(path_rasters)
 
 # load data
 ctg <- readTLSLAScatalog(path_points)
@@ -126,8 +126,6 @@ for (area_ID in area_IDs) {
 
 # use single core
 plan(sequential)
-
-# TODO: weird tile edge artifacts --> also in point cloud?
 
 ################################################################################
 # NORMALIZE POINT CLOUDS
@@ -260,6 +258,9 @@ area_IDs <- list.files(paste0(dirname(path_points), "/03_understory"), pattern="
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 for (area_ID in area_IDs) {
+  # print, which area is processed
+  print(paste0("... calculating rasters of area ", area_ID))
+  
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/03_understory"), pattern=paste0("area_", area_ID), full.names=TRUE)
   file_list <- file_list[grepl("[.]las", file_list)]
@@ -269,9 +270,18 @@ for (area_ID in area_IDs) {
   opt_chunk_buffer(ctg_understory) <- buffer_size
   opt_chunk_size(ctg_understory) <- chunk_size
   
-  # execute - input for CNN & filtering vegetation plots
-  raster_create_all_ctg(ctg_understory, raster_resolution, path_rasters, paste0("area_", area_ID), rescale=FALSE)
-  warnings()
+  # # execute - input for CNN & filtering vegetation plots
+  # raster_create_all_ctg(ctg_understory, raster_resolution, path_rasters, paste0("area_", area_ID), rescale=FALSE)
+  # warnings()
+  
+  # use many cores for this
+  # raster_nDSM_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/nDSM"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
+  # raster_ortho_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/ortho"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
+  # raster_point_density_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/point_density"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
+  # raster_reflectance_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/reflectance"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
+  
+  # use single core for this
+  raster_geometry_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/geometry"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
 }
 
 ################################################################################
@@ -281,6 +291,9 @@ area_IDs <- list.files(paste0(dirname(path_points), "/04_understory_stems"), pat
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 for (area_ID in area_IDs) {
+  # print, which area is processed
+  print(paste0("... calculating rasters of area ", area_ID))
+  
   # read from folder
   file_list <- list.files(paste0(dirname(path_points), "/04_understory_stems"), pattern=paste0("area_", area_ID), full.names=TRUE)
   file_list <- file_list[grepl("[.]las", file_list)]

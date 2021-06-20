@@ -4,16 +4,13 @@
 ################################################################################
 ################################################################################
 
-# for this part, all rasters must be computed and **normalized** (fuck)
-# selecting the rasters must be done manually
-
 # load packages
-library(raster)  # for rasters
-library(sp)  # for spatial objects
-library(Hmisc)  # for cluster analysis
+library(raster)
+library(sp)
+library(Hmisc)
 
 # set path
-path_rasters  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters"
+path_rasters  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters_1cm"
 
 ################################################################################
 # HELPER FUNCTION
@@ -65,6 +62,7 @@ rescale_values <- function(folder) {
 # get all relevant raster paths
 raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE, full.names=TRUE)
 raster_list <- raster_list[!grepl("nDSM_filtering", raster_list)]  # remove unscales nDSM from list
+raster_list <- raster_list[!grepl("DTM", raster_list)]  # remove DTM from list
 raster_list <- raster_list[!grepl("ortho", raster_list)]  # I want to keep this anyway
 raster_list <- raster_list[!grepl("temp", raster_list)]  # remove temporary files
 
@@ -120,7 +118,7 @@ for (i in 1:length(raster_stacks)) {
 }
 
 # save to avoid waiting again
-write.csv(raster_df, paste0(path_rasters, "/raster_samples_unscaled.csv"), row.names =FALSE)
+write.csv(raster_df, paste0(path_rasters, "/raster_samples_unscaled.csv"), row.names=FALSE)
 
 ################################################################################
 
@@ -139,7 +137,7 @@ for (i in 1:ncol(raster_df)) {
 }
 
 # save to avoid waiting again
-write.csv(raster_df, paste0(path_rasters, "/raster_samples_scaled.csv"), row.names =FALSE)
+write.csv(raster_df, paste0(path_rasters, "/raster_samples_scaled.csv"), row.names=FALSE)
 
 ################################################################################
 
@@ -189,51 +187,51 @@ plot(clust_all_2)
 abline(h=0.7^2, lty=2, col="deeppink3")
 
 # cluster: curvature_sd [6] / anisotropy_sd [3] / sphericity_sd [15] (all really similar)
-# keep: sphericity_sd [15]
-# remove: curvature_sd [6] / anisotropy_sd [3]
-clust_all_3 <- varclus(as.matrix(raster_df[-c(18,6,3)]), similarity = c("spearman"))
+# keep: curvature_sd [6]
+# remove: sphericity_sd [15] / anisotropy_sd [3]
+clust_all_3 <- varclus(as.matrix(raster_df[-c(18,15,3)]), similarity = c("spearman"))
 plot(clust_all_3)
 abline(h=0.7^2, lty=2, col="deeppink3")
 
 # cluster: linearity_max [7] / linearity_mean [8]
 # keep: linearity_max [7]
 # remove: linearity_mean [8]
-clust_all_4 <- varclus(as.matrix(raster_df[-c(18,6,3,8)]), similarity = c("spearman"))
+clust_all_4 <- varclus(as.matrix(raster_df[-c(18,15,3,8)]), similarity = c("spearman"))
 plot(clust_all_4)
 abline(h=0.7^2, lty=2, col="deeppink3")
 
 # cluster: planarity_max [10] / planarity_mean [11]
 # keep: planarity_mean [11]
 # remove: planarity_max [10]
-clust_all_5 <- varclus(as.matrix(raster_df[-c(18,6,3,8,10)]), similarity = c("spearman"))
+clust_all_5 <- varclus(as.matrix(raster_df[-c(18,15,3,8,10)]), similarity = c("spearman"))
 plot(clust_all_5)
 abline(h=0.7^2, lty=2, col="deeppink3")
 
 # cluster: curvature_mean [5] / anisotropy_mean [2] / sphericity_mean [14] / curvature_max [4] / sphericity_max [13]
 # keep: curvature_max [4]
 # remove: curvature_mean [5] / anisotropy_mean [2] / sphericity_mean [14] / sphericity_max [13]
-clust_all_6 <- varclus(as.matrix(raster_df[-c(18,6,3,8,10,5,2,14,13)]), similarity = c("spearman"))
+clust_all_6 <- varclus(as.matrix(raster_df[-c(18,15,3,8,10,5,2,14,13)]), similarity = c("spearman"))
 plot(clust_all_6)
 abline(h=0.7^2, lty=2, col="deeppink3")
 
-# new cluster: curvature_max [4] / sphericity_sd [15]
+# new cluster: curvature_max [4] / curvature_sd [6]
 # keep: curvature_max [4]
-# remove: sphericity_sd [15]
-clust_all_7 <- varclus(as.matrix(raster_df[-c(18,6,3,8,10,5,2,14,13,15)]), similarity = c("spearman"))
+# remove: curvature_sd [6]
+clust_all_7 <- varclus(as.matrix(raster_df[-c(18,15,3,8,10,5,2,14,13,6)]), similarity = c("spearman"))
 plot(clust_all_7)
 abline(h=0.7^2, lty=2, col="deeppink3")
 
 # checking if everything under threshold
 clust_all_7[["sim"]]
 clust_all_7[["sim"]] > (0.7^2)
-cor(raster_df[-c(18,6,3,8,10,5,2,14,13,15)], method="spearman")
-cor(raster_df[-c(18,6,3,8,10,5,2,14,13,15)], method="spearman") < 0.7
+cor(raster_df[-c(18,15,3,8,10,5,2,14,13,6)], method="spearman")
+cor(raster_df[-c(18,15,3,8,10,5,2,14,13,6)], method="spearman") < 0.7
 
 ################################################################################
 # PCA 2
 ################################################################################
 
-pca_remains <- prcomp(raster_df[-c(18,6,3,8,10,5,2,14,13,15)])
+pca_remains <- prcomp(raster_df[-c(18,15,3,8,10,5,2,14,13,6)])
 summary(pca_remains)  # with 5 PCs we are above the 90% explained variance
 names(pca_remains$sdev) <- as.character(1:10)
 screeplot(pca_remains, las=1, main="", cex.lab=1.5, xlab="Hauptkomponenten")  # to see which PCs explain how much variance
@@ -245,17 +243,19 @@ biplot(pca_remains, cex=c(0.5,1))#, xlim=c(-0.05, 0.05), ylim=c(-0.05, 0.05))
 ################################################################################
 
 # keep:
-keep_names <- names(raster_df[-c(18,6,3,8,10,5,2,14,13,15)])
+keep_names <- sort(names(raster_df[-c(18,15,3,8,10,5,2,14,13,6)]))
 print(keep_names)
 # "ortho", "anisotropy_max", "curvature_max", "linearity_max",
-# "linearity_sd", "planarity_mean", "planarity_sd", "nDSM",
+# "linearity_sd", "nDSM", "planarity_mean", "planarity_sd",
 # "point_density", "reflectance_mean", "reflectance_sd")
 
 # remove:
-remove_names <- names(raster_df[c(18,6,3,8,10,5,2,14,13,15)])
+remove_names <- sort(names(raster_df[c(18,15,3,8,10,5,2,14,13,6)]))
 print(remove_names)
-# "reflectance_max", "curvature_sd", "anisotropy_sd", "linearity_mean",
-# "planarity_max", "curvature_mean", "anisotropy_mean", "sphericity_mean",
-# "sphericity_max", "sphericity_sd"
+# "anisotropy_mean", "anisotropy_sd", "curvature_mean", "curvature_sd",
+# "linearity_mean", "planarity_max", "reflectance_max", "sphericity_max",
+# "sphericity_mean", "sphericity_sd"
+
+# same results with 1cm or 2cm rasters
 
 ################################################################################

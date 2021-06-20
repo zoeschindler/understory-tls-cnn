@@ -4,12 +4,15 @@
 ################################################################################
 ################################################################################
 
-# line 32: path to cpp-file
-# line 53: amount of cores
-
 # load packages
-library(lidR)  # for point clouds, also loads sp & raster
+library(lidR)
 library(TreeLS)
+
+# set paths
+path_eigenvalues <- "C:/Users/Zoe/Documents/understory_classification/5_Analyse/eigen_decomposition.cpp"
+
+# set parameters
+n_cores <- 16
 
 ################################################################################
 # HELPER FUNCTIONS
@@ -41,7 +44,7 @@ lowest_per_voxel <- function(X, Y, Z) {
 
 # fast eigenvalue calculation
 # source: https://gis.stackexchange.com/questions/395916/get-eigenvalues-of-large-point-cloud-using-lidr
-Rcpp::sourceCpp("C:/Users/Zoe/Documents/understory_classification/5_Analyse/eigen_decomposition.cpp")
+Rcpp::sourceCpp(path_eigenvalues)
 
 ################################################################################
 
@@ -62,7 +65,7 @@ metric_ortho <- function(r, g, b, z) {
 add_geometry <- function(las) {
   # necessary for raster_geometry
   # returns geometric features based on eigenvalues
-  eigen <- eigen_decomposition(las, 20, 16)  # 20 neighbours, 16 cores
+  eigen <- eigen_decomposition(las, 20, n_cores)  # 20 neighbours, n cores
   las <- add_lasattribute(las, eigen[,3]/(eigen[,1] + eigen[,2] + eigen[,3]), "curvature", "curvature")
   las <- add_lasattribute(las, (eigen[,1] - eigen[,2])/eigen[,1], "linearity", "linearity")
   las <- add_lasattribute(las, (eigen[,2] - eigen[,3])/eigen[,1], "planarity", "planarity")
@@ -774,15 +777,10 @@ raster_create_all_ctg <- function(ctg, resolution, output_dir, output_name, resc
   # set rescale = TRUE if it should be normalized between 0 and 1
   # set saving = TRUE if raster should be saved, set saving = FALSE to return raster as object
   raster_nDSM_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/nDSM"), output_name, rescale, saving)
-  gc()
   raster_ortho_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/ortho"), output_name, rescale, saving)
-  gc()
   raster_point_density_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/point_density"), output_name, rescale, saving)
-  gc()
   raster_reflectance_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/reflectance"), output_name, rescale, saving)
-  gc()
   raster_geometry_ctg.LAScatalog(ctg, resolution, paste0(output_dir, "/geometry"), output_name, rescale, saving)
-  gc()
   print("done!")
 }
 

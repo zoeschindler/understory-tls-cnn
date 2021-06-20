@@ -4,17 +4,16 @@
 ################################################################################
 ################################################################################
 
-# currently uses: Reflectance, Deviation, Target Index, Target Count
-# currently no: RGB, LAScatalogues
-
 # load packages
 library(dplyr)
 library(lidR)
 library(sf)
 
 # set path
-setwd("C:/Users/Zoe/Documents/understory_classification/4_Daten/points")
-kml_path <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/scan_positions/2021-05-03 wino np earth.kml"
+points_path  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/points"
+kml_path    <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/scan_positions/2021-05-03 wino np earth.kml"
+setwd(points_path)
+
 # *.asc to *.las in CC
 # *.kmz to *.kml in Google Earth
 
@@ -54,44 +53,6 @@ scan6_path  <- prepare_scan("ScanPos006 - SINGLESCANS - 210503_103753 - Cloud.la
 ################################################################################
 # FILTERING NOISE
 ################################################################################
-
-# Filter in CC ist komisch, man kann keine Nachbarn einstellen, dnktioniert irgendwie anders
-# https://www.cloudcompare.org/doc/wiki/index.php?title=Noise_filter
-# das nächstähnliche ist ivf: findet Punkte in einem Voxel, wo in den umliegenden Voxeln weniger als n andere Puntke sind?
-# das heisßt, resolution 0.2 würde etwa einem radius von 0.3 entsprechen? (1.5 Zellen zum Rand)
-
-
-# test_noise_filter <- function(path) {
-#   scan <- readTLSLAS(path)
-#   scan <- scan %>%
-#   #  classify_noise(., ivf(res = 0.5, n = 5)) %>%
-#   #  add_lasattribute(., .@data$`Classification`, "res05n5", "res05n5") %>%
-#   #  classify_noise(., ivf(res = 0.4, n = 5)) %>%
-#   #  add_lasattribute(., .@data$`Classification`, "res04n5", "res04n5") %>%
-#     classify_noise(., ivf(res = 0.3, n = 5)) %>%
-#     add_lasattribute(., .@data$`Classification`, "res03n5", "res03n5") %>%
-#     classify_noise(., ivf(res = 0.2, n = 5)) %>%
-#     add_lasattribute(., .@data$`Classification`, "res02n5", "res02n5") %>%
-#     classify_noise(., ivf(res = 0.1, n = 5)) %>%
-#     add_lasattribute(., .@data$`Classification`, "res01n5", "res01n5") %>%
-#     classify_noise(., ivf(res = 0.067, n = 5)) %>%
-#     add_lasattribute(., .@data$`Classification`, "res0067n5", "res0067n5") %>%
-#     writeLAS(., paste0(substr(path, 1, nchar(path)-4), "_noise.las"))
-#   gc()
-#   return(paste0(substr(path, 1, nchar(path)-4), "_noise.las"))
-# }
-# 
-# scan2_path_noise <- test_noise_filter("ScanPos002 - SINGLESCANS - 210503_102933 - Cloud_ground.las")
-# scan3_path_noise <- test_noise_filter("ScanPos003 - SINGLESCANS - 210503_103110 - Cloud_ground.las")
-# scan4_path_noise <- test_noise_filter("ScanPos004 - SINGLESCANS - 210503_103257 - Cloud_ground.las")
-# scan5_path_noise <- test_noise_filter("ScanPos005 - SINGLESCANS - 210503_103526 - Cloud_ground.las")
-# scan6_path_noise <- test_noise_filter("ScanPos006 - SINGLESCANS - 210503_103753 - Cloud_ground.las")
-# 
-# angucken in CC, 0=bliebe drinnen, 1=würde fliegen
-
-
-# am besten fand ich: 0.1 -> äquivalent zu etwa 15cm Radius
-# wenn noch kleiner, verschwinden viele Astspitzen & Boden am Hang, hab Angst um Heidelbeere Ästchen
 
 filter_noise <- function(path, res) {
   scan <- readTLSLAS(path)
@@ -169,10 +130,6 @@ scan6_path_noise  <- filter_noise(scan6_path, resolution)
 # FILTER REFLECTANCE & DEVIATION
 ################################################################################
 
-# in CC angeguckt:
-# Reflectance: ich mag -20 bis 0, (-15 geht auch aber dann geht am Hang einiges verloren)
-# Deviation: die meisten Sachen sind um die 20 gut, Heidelbeere hat nur so diffuse Linien hinter sich wenn höher
-
 filter_ref_dev <- function(path, reflectance, deviation) {
   scan <- readTLSLAS(path)
   scan <- scan %>%
@@ -195,9 +152,6 @@ scan6_path_noise_filter  <- filter_ref_dev(scan6_path_noise, reflectance, deviat
 ################################################################################
 # MAXIMUM DISTANCE
 ################################################################################
-
-# in CC angeguckt, weil R nicht mehr als die 10m verkraftet...
-# mir gefällt 30 am besten, von 30 zu 40 findet in der nahen Umgebung (10-20m von Rand entfernt) effektiv keine Verbesserung mehr statt
 
 clip_scan_circle <- function(path_scan, path_kml, radius) {
   # read las
@@ -311,8 +265,8 @@ scan_paths <- c(scan2_path_noise_circle,
                 scan5_path_noise_circle,
                 scan6_path_noise_circle)
 
-# merge_and_thin(scan_paths, paste0("cirle", circle, "_res", resolution), resolution, method="random")
+merge_and_thin(scan_paths, paste0("cirle", circle, "_res", resolution), resolution, method="random")
 # merge_and_thin(scan_paths, paste0("cirle", circle, "_res", resolution), resolution, method="mean")
-merge_and_thin(scan_paths, paste0("cirle", circle, "_res", resolution), resolution, method="min_deviation")
+# merge_and_thin(scan_paths, paste0("cirle", circle, "_res", resolution), resolution, method="min_deviation")
 
 ################################################################################

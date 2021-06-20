@@ -11,8 +11,8 @@ library(keras)
 library(raster)
 
 # set paths
-path_clips <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models/input_unfiltered/tls_rgb_geo"  # input
-path_output <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models/out"  # output
+path_clips  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/models/input_unfiltered/tls_rgb_geo"  # input
+path_output <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/models/out"  # output
 
 # set data input parameters
 width_length <- 50  # number of pixels
