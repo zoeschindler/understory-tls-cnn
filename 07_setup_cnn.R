@@ -48,7 +48,7 @@ check_create_dir <- function(path) {
 # READING IN IMAGES
 ################################################################################
 
-tif_to_rds <- function(clip_dir, output_dir, pixels, bands, seed=123) {
+tif_to_rds <- function(clip_dir, output_dir, pixels, bands, folds=5, seed=123) {
   # reads in images, divide into stratified k-folds, save as rds
   check_create_dir(output_dir)
   # set seed
@@ -62,24 +62,26 @@ tif_to_rds <- function(clip_dir, output_dir, pixels, bands, seed=123) {
   img_labels_all <- as.numeric(as.factor(img_labels_all))
   # set up empty list for indices
   fold_indices <- list()
-  for (i in 1:5) {
+  for (i in 1:folds) {
     fold_indices[[i]] <- NA
   }
   # loop through labels, split each evenly, save grouped indices
   for (grp in unique(img_labels_all)) {
     grp_indices <- which(img_labels_all == grp)
     grp_indices <- grp_indices[sample(length(grp_indices))]
-    grp_indices_split <- chunk(grp_indices, n.chunks = 5)
+    grp_indices_split <- chunk(grp_indices, n.chunks = folds)
     # save indices
-    for (j in 1:5) {
+    for (j in 1:folds) {
       fold_indices[[j]] <- c(fold_indices[[j]], grp_indices_split[[j]])
     }
   }
   # remove dummy NA values
-  for (k in 1:5) {fold_indices[[k]] <- as.numeric(na.omit(fold_indices[[k]]))}
+  for (k in 1:folds) {
+    fold_indices[[k]] <- as.numeric(na.omit(fold_indices[[k]]))
+  }
   # loop through all folds
   output_paths <- c()
-  for (l in 1:5) {
+  for (l in 1:folds) {
     print(paste0("... loading & saving split ", l))
     # get all filenames & labels of the fold
     fold_files <- img_paths_all[fold_indices[[l]]]
@@ -105,14 +107,14 @@ tif_to_rds <- function(clip_dir, output_dir, pixels, bands, seed=123) {
 # DATA PREPARATION & AUGMENTATION
 ################################################################################
 
-create_dataset <- function(rdata_list, holdout_fold, balance_classes=TRUE) {
+create_dataset <- function(rdata_list, holdout_fold, pixels, bands, balance_classes=TRUE, train_with_validation=FALSE) {
   # create dataset for CNN 
   # load test data
   raw_test <- readRDS(rdata_list[holdout_fold])
   img_test <- raw_test$img
   label_test <- raw_test$label
   # load training folds
-  img_train <- array(dim=c(0,50,50,13))
+  img_train <- array(dim=c(0, pixels, pixels, bands))
   label_train <- c()
   for (i in 1:length(rdata_list)) {
     if (i != holdout_fold) {
@@ -138,7 +140,7 @@ create_dataset <- function(rdata_list, holdout_fold, balance_classes=TRUE) {
   if (balance_classes) {
     repeated_indices <- c()
     max_per_image <- 5  # maximum augmentation per image
-    max_length <- 500  # maximum sample size per class
+    max_length <- 300  # maximum sample size per class
     for (label in unique(label_train)) {
       label_idx <- which(label_train == label)
       new_length <- ifelse(max_per_image * length(label_idx) > max_length,
