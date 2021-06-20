@@ -11,8 +11,8 @@ library(keras)
 library(raster)
 
 # set paths
-path_clips  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/models/input_unfiltered/tls_rgb_geo"  # input
-path_output <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/models/out"  # output
+path_clips  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models/input_unfiltered/tls_rgb_geo"  # input
+path_output <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models/out"  # output
 
 # set data input parameters
 width_length <- 50  # number of pixels
@@ -185,18 +185,6 @@ create_dataset <- function(rdata_list, holdout_fold, balance_classes=TRUE) {
 }
 
 ################################################################################
-# EXECUTION
-################################################################################
-
-# execute only once because it takes time
-tif_to_rds(path_clips, path_output, width_length, n_bands, seed=123)
-
-# later execute in a loop k times, also train & assess model k times
-rdata_paths <- list.files(path_output, pattern="[.]rds", full.names=TRUE)
-imbalanced <- create_dataset(rdata_paths, 4, balance_classes=FALSE)
-balanced <- create_dataset(rdata_paths, 4, balance_classes=TRUE)
-
-################################################################################
 # LeNet-5
 # http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf
 # https://www.kaggle.com/curiousprogrammer/lenet-5-cnn-with-keras-99-48 (based on this code)
@@ -235,10 +223,6 @@ get_lenet5 <- function(width_length, n_bands, n_band_selector, n_classes, filter
 # https://github.com/r-tensorflow/alexnet/blob/master/R/alexnet_train.R (and this code)
 ################################################################################
 
-# hat eigentlich viel größeren Input (224x224x3) & mehr Klassen (1000)
-# im paper ist max_pooling mit pool_size = 3 und stride = 2, in dem github code nicht
-# je nach code quelle ist padding = "same" / "valid"
-
 get_alexnet <- function(width_length, n_bands, n_band_selector, n_classes, filter_factor) {
   model <- keras_model_sequential() %>%
     # band selector
@@ -275,7 +259,7 @@ get_alexnet <- function(width_length, n_bands, n_band_selector, n_classes, filte
 # https://towardsdatascience.com/step-by-step-vgg16-implementation-in-keras-for-beginners-a833c686ae6c (based on this code)
 ################################################################################
 
-get_alexnet <- function(width_length, n_bands, n_band_selector, n_classes, filter_factor) {
+get_vgg16 <- function(width_length, n_bands, n_band_selector, n_classes, filter_factor) {
   model <- keras_model_sequential() %>%
     # band selector
     layer_conv_2d(input_shape = c(width_length, width_length, n_bands), filters = n_band_selector,
@@ -284,30 +268,30 @@ get_alexnet <- function(width_length, n_bands, n_band_selector, n_classes, filte
     # block 1
     layer_conv_2d(filters = 64 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
     layer_conv_2d(filters = 64 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_batch_normalization() %>%
+    #layer_batch_normalization() %>%
     layer_max_pooling_2d() %>% 
     # block 2
     layer_conv_2d(filters = 128 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
     layer_conv_2d(filters = 128 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_batch_normalization() %>%
+    #layer_batch_normalization() %>%
     layer_max_pooling_2d() %>%
     # block 3
     layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
     layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
     layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_batch_normalization() %>%
+    #layer_batch_normalization() %>%
     layer_max_pooling_2d() %>%
     # block 4
     layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
     layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
     layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_batch_normalization() %>%
+    #layer_batch_normalization() %>%
     layer_max_pooling_2d() %>%
     # block 5
     layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
     layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
     layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_batch_normalization() %>%
+    #layer_batch_normalization() %>%
     layer_max_pooling_2d() %>%
     # block 6
     layer_flatten() %>%
