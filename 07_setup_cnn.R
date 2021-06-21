@@ -10,28 +10,6 @@ library(BBmisc)
 library(keras)
 library(raster)
 
-# set paths
-path_clips  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models/input_unfiltered/tls_rgb_geo"  # input
-path_output <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models/out"  # output
-
-# set data input parameters
-width_length <- 50  # number of pixels
-input_type <- basename(path_clips)
-if (input_type == "tls") {
-  n_bands <- 4
-} else if (input_type == "tls_geo") {
-  n_bands <- 10
-} else if (input_type == "tls_rgb") {
-  n_bands <- 7
-} else if (input_type == "tls_rgb_geo") {
-  n_bands <- 13
-}
-
-# set architecture parameters
-n_band_selector <- 5  # number of layers after band selector
-n_classes <- 7  # number of understory classes
-filter_factor <- 0.5  # multiplier for amount of filters per layer (0.25 / 0.5 / 1 / 2)
-
 ################################################################################
 # HELPER FUNCTIONS
 ################################################################################
@@ -43,31 +21,18 @@ check_create_dir <- function(path) {
     dir.create(path)
   }
 }
-
-################################################################################
-# READING IN IMAGES
 ################################################################################
 
-tif_to_rds <- function(clip_dir, output_dir, pixels, bands, folds=5, seed=123) {
-  # reads in images, divide into stratified k-folds, save as rds
-  check_create_dir(output_dir)
-  # set seed
-  set.seed(seed)
-  # get all file paths, excluding smallest groups
-  img_paths_all <- list.files(clip_dir, pattern=".tif", full.names=TRUE)
-  img_paths_all <- img_paths_all[!grepl("grass", img_paths_all)]
-  img_paths_all <- img_paths_all[!grepl("rock", img_paths_all)]
-  # get all labels
-  img_labels_all <- sapply(strsplit(basename(img_paths_all), "_"), "[[", 1)
-  img_labels_all <- as.numeric(as.factor(img_labels_all))
+strat_folds <- function(label_vector, folds) {
+  # splits label vector evenly into stratified folds, returns list with indices
   # set up empty list for indices
   fold_indices <- list()
   for (i in 1:folds) {
     fold_indices[[i]] <- NA
   }
   # loop through labels, split each evenly, save grouped indices
-  for (grp in unique(img_labels_all)) {
-    grp_indices <- which(img_labels_all == grp)
+  for (grp in unique(label_vector)) {
+    grp_indices <- which(label_vector == grp)
     grp_indices <- grp_indices[sample(length(grp_indices))]
     grp_indices_split <- chunk(grp_indices, n.chunks = folds)
     # save indices
@@ -79,6 +44,52 @@ tif_to_rds <- function(clip_dir, output_dir, pixels, bands, folds=5, seed=123) {
   for (k in 1:folds) {
     fold_indices[[k]] <- as.numeric(na.omit(fold_indices[[k]]))
   }
+  # retutn list of indices, one list entry of indices per fold
+  return(fold_indices)
+}
+
+################################################################################
+
+balance_by_duplicates <- function(label_vector, image_array, max_per_image=5, max_length=300) {
+  # duplicates labels & images per label until:
+  # - each images was duplicated max_per_image times
+  # - amount of samples per label was raised to max_length respectively
+  repeated_indices <- c()
+  for (label in unique(label_vector)) {
+    label_indices <- which(label_vector == label)
+    new_length <- ifelse(max_per_image * length(label_indices) > max_length,
+                         max_length,
+                         max_per_image * length(label_indices))
+    label_indices <- rep(label_indices, length.out=new_length)
+    repeated_indices <- c(repeated_indices, label_indices)
+  }
+  label_vector <- label_vector[repeated_indices]
+  image_array <- image_array[repeated_indices,,,]
+  # shuffle data
+  new_idx_train <- sample(length(label_vector))
+  label_vector <- label_vector[new_idx_train]
+  image_array <- image_array[new_idx_train,,,]
+  # return new images & labels in list
+  return(list(label=label_vector, img=image_array))
+}
+
+################################################################################
+# READING IN IMAGES
+################################################################################
+
+tif_to_rds <- function(clip_dir, pixels, bands, folds=5, seed=123) {
+  # reads in images, divide into stratified k-folds, save as rds
+  # set seed
+  set.seed(seed)
+  # get all file paths, excluding smallest groups
+  img_paths_all <- list.files(clip_dir, pattern=".tif", full.names=TRUE)
+  img_paths_all <- img_paths_all[!grepl("grass", img_paths_all)]
+  img_paths_all <- img_paths_all[!grepl("rock", img_paths_all)]
+  # get all labels
+  img_labels_all <- sapply(strsplit(basename(img_paths_all), "_"), "[[", 1)
+  img_labels_all <- as.numeric(as.factor(img_labels_all))
+  # make stratified split
+  fold_indices <- strat_folds(img_labels_all, folds)
   # loop through all folds
   output_paths <- c()
   for (l in 1:folds) {
@@ -97,8 +108,8 @@ tif_to_rds <- function(clip_dir, output_dir, pixels, bands, folds=5, seed=123) {
     }
     # save image array as rds
     data_list <- list(img=img_array, label=label_vector)
-    saveRDS(data_list, file = paste0(output_dir, "/images_fold_", l, ".rds"))
-    output_paths <- c(output_paths, paste0(output_dir, "/images_fold_", l, ".rds"))
+    saveRDS(data_list, file = paste0(clip_dir, "/images_fold_", l, ".rds"))
+    output_paths <- c(output_paths, paste0(clip_dir, "/images_fold_", l, ".rds"))
   }
   return(output_paths)
 }
@@ -107,83 +118,101 @@ tif_to_rds <- function(clip_dir, output_dir, pixels, bands, folds=5, seed=123) {
 # DATA PREPARATION & AUGMENTATION
 ################################################################################
 
-create_dataset <- function(rdata_list, holdout_fold, pixels, bands, balance_classes=TRUE, train_with_validation=FALSE) {
+create_dataset <- function(rdata_list, holdout_fold, pixels, bands, balance_classes=TRUE) {
   # create dataset for CNN 
   # load test data
   raw_test <- readRDS(rdata_list[holdout_fold])
   img_test <- raw_test$img
   label_test <- raw_test$label
+  rm(raw_test)
   # load training folds
-  img_train <- array(dim=c(0, pixels, pixels, bands))
-  label_train <- c()
+  img_train_vali <- array(dim=c(0, pixels, pixels, bands))
+  label_train_vali <- c()
   for (i in 1:length(rdata_list)) {
     if (i != holdout_fold) {
-      raw_train <- readRDS(rdata_list[i])
-      img_train <- unname(abind(img_train, raw_train$img, along=1))
-      label_train <- c(label_train, raw_train$label)
-      rm(raw_train)
+      raw_train_vali <- readRDS(rdata_list[i])
+      img_train_vali <- unname(abind(img_train_vali, raw_train_vali$img, along=1))
+      label_train_vali <- c(label_train_vali, raw_train_vali$label)
+      rm(raw_train_vali)
     }
   }
   # replace NA with -1 in images
-  img_train[is.na(img_train)] <- -1
   img_test[is.na(img_test)] <- -1
-  # TODO: add steps for validation dataset
-  # shuffle data, training data
+  img_train_vali[is.na(img_train_vali)] <- -1
+  # make stratified split
+  fold_indices <- strat_folds(label_train_vali, 5)  # 5 folds -> use 20% for validation
+  indices_train <- unlist(fold_indices[1:4])
+  indices_vali <- fold_indices[[5]]
+  img_train <- img_train_vali[indices_train,,,]
+  label_train <- label_train_vali[indices_train]
+  img_vali <- img_train_vali[indices_vali,,,]
+  label_vali <- label_train_vali[indices_vali]
+  # shuffle datasets
   new_idx_test <- sample(length(label_test))
   label_test <- label_test[new_idx_test]
   img_test <- img_test[new_idx_test,,,]
-  # shuffle data, training data
+  ###
+  new_idx_train_vali <- sample(length(label_train_vali))
+  label_train_vali <- label_train_vali[new_idx_train_vali]
+  img_train_vali <- img_train_vali[new_idx_train_vali,,,]
+  ###
   new_idx_train <- sample(length(label_train))
   label_train <- label_train[new_idx_train]
   img_train <- img_train[new_idx_train,,,]
-  # duplicate images in training set depending on label frequency
-  if (balance_classes) {
-    repeated_indices <- c()
-    max_per_image <- 5  # maximum augmentation per image
-    max_length <- 300  # maximum sample size per class
-    for (label in unique(label_train)) {
-      label_idx <- which(label_train == label)
-      new_length <- ifelse(max_per_image * length(label_idx) > max_length,
-                           max_length,
-                           max_per_image * length(label_idx))
-      label_idx <- rep(label_idx, length.out=new_length)
-      repeated_indices <- c(repeated_indices, label_idx)
-    }
-    label_train <- label_train[repeated_indices]
-    img_train <- img_train[repeated_indices,,,]
-    # shuffle data, training data
-    new_idx_train <- sample(length(label_train))
-    label_train <- label_train[new_idx_train]
-    img_train <- img_train[new_idx_train,,,]
-  }
+  ###
+  new_idx_vali <- sample(length(label_vali))
+  label_vali <- label_vali[new_idx_vali]
+  img_vali <- img_vali[new_idx_vali,,,]
+  # duplicate images depending on label frequency, training + validation
+  duplicated_train_vali <- balance_by_duplicates(label_train_vali, img_train_vali)
+  label_train_vali <- duplicated_train_vali$label
+  img_train_vali <- duplicated_train_vali$img
+  # duplicate images depending on label frequency, only training
+  duplicated_train <- balance_by_duplicates(label_train, img_train)
+  label_train <- duplicated_train$label
+  img_train <- duplicated_train$img
   # empty data generator, for test / validation data
   no_augmentation <- image_data_generator()
   # data generator with data augmentation, for training data
   do_augmentation <- image_data_generator(
     fill_mode = "reflect",
     rotation_range = 10,
-    # width_shift_range = 0.02,
-    # height_shift_range = 0.02,
+    #width_shift_range = 0.02,
+    #height_shift_range = 0.02,
+    #shear_range = 10,
     horizontal_flip = TRUE,
     vertical_flip = TRUE)
   # get number of classes
   label_classes <- length(unique(label_train))
   # generate batches, for test data
-  test_flow <- flow_images_from_data(
+  flow_test <- flow_images_from_data(
     x = img_test,
     y = to_categorical(label_test)[,2:(label_classes+1)],
     generator = no_augmentation)
+  # generate batches, for training + validation data
+  flow_train_vali <- flow_images_from_data(
+    x = img_train_vali,
+    y = to_categorical(label_train_vali)[,2:(label_classes+1)],
+    generator = do_augmentation)
   # generate batches, for training data
-  train_flow <- flow_images_from_data(
+  flow_train <- flow_images_from_data(
     x = img_train,
     y = to_categorical(label_train)[,2:(label_classes+1)],
     generator = do_augmentation)
-  # TODO: add steps for validation dataset
+  # generate batches, for validation data
+  flow_vali <- flow_images_from_data(
+    x = img_vali,
+    y = to_categorical(label_vali)[,2:(label_classes+1)],
+    generator = no_augmentation)
   # return ready to use image_generators & steps per epoch
-  return(list(data_test = test_flow,
-              data_train = train_flow,
+  return(list(data_test = flow_test,
+              data_train_vali = flow_train_vali,
+              data_train = flow_train,
+              data_vali = flow_vali,
               steps_test = floor(length(label_test)/32),
-              steps_train = floor(length(label_train)/32)))
+              steps_train_vali = floor(length(label_train_vali)/32),
+              steps_train = floor(length(label_train)/32),
+              steps_vali = floor(length(label_vali)/32)))
 }
 
 ################################################################################
@@ -198,7 +227,6 @@ get_lenet5 <- function(width_length, n_bands, n_band_selector, n_classes, filter
     layer_conv_2d(input_shape = c(width_length, width_length, n_bands), filters = n_band_selector,
                   kernel_size = c(1,1), strides = c(1,1), padding="same") %>%
     # main model
-    
     # block 1
     layer_conv_2d(filters = 32 * filter_factor, kernel_size = c(5,5), activation = "relu", padding="same") %>%
     layer_batch_normalization() %>%
@@ -232,18 +260,18 @@ get_alexnet <- function(width_length, n_bands, n_band_selector, n_classes, filte
                   kernel_size = c(1,1), strides = c(1,1), padding="same") %>%
     # main model
     # block 1
-    layer_conv_2d(filters = 96 * filter_factor, kernel_size = c(11,11), activation = "relu", strides = c(4,4)) %>%
-    layer_batch_normalization() %>%
+    layer_conv_2d(filters = 96 * filter_factor, kernel_size = c(11,11), activation = "relu", strides = c(4,4), padding="same") %>%
+    #layer_batch_normalization() %>%
     layer_max_pooling_2d(pool_size=c(3,3), strides=c(2,2)) %>%
     # block 2
     layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(5,5), activation = "relu", strides = c(1,1), padding="same") %>%
-    layer_batch_normalization() %>%
+    #layer_batch_normalization() %>%
     layer_max_pooling_2d(pool_size=c(3,3), strides=c(2,2)) %>%
     # block 4
     layer_conv_2d(filters = 384 * filter_factor, kernel_size = c(3,3), activation = "relu", strides = c(1,1), padding="same") %>%
     layer_conv_2d(filters = 384 * filter_factor, kernel_size = c(3,3), activation = "relu", strides = c(1,1), padding="same") %>%
     layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", strides = c(1,1), padding="same") %>%
-    layer_batch_normalization() %>%
+    #layer_batch_normalization() %>%
     layer_max_pooling_2d(pool_size=c(3,3), strides=c(2,2)) %>%
     # block 5
     layer_flatten() %>%
