@@ -163,14 +163,25 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, balance_clas
   new_idx_vali <- sample(length(label_vali))
   label_vali <- label_vali[new_idx_vali]
   img_vali <- img_vali[new_idx_vali,,,]
-  # duplicate images depending on label frequency, training + validation
-  duplicated_train_vali <- balance_by_duplicates(label_train_vali, img_train_vali)
-  label_train_vali <- duplicated_train_vali$label
-  img_train_vali <- duplicated_train_vali$img
-  # duplicate images depending on label frequency, only training
-  duplicated_train <- balance_by_duplicates(label_train, img_train)
-  label_train <- duplicated_train$label
-  img_train <- duplicated_train$img
+  ###
+  if(balance_classes) {
+    # duplicate images depending on label frequency
+    duplicated_train_vali <- balance_by_duplicates(label_train_vali, img_train_vali)
+    label_train_vali <- duplicated_train_vali$label
+    img_train_vali <- duplicated_train_vali$img
+    ###
+    duplicated_train <- balance_by_duplicates(label_train, img_train)
+    label_train <- duplicated_train$label
+    img_train <- duplicated_train$img
+    # shuffle datasets
+    new_idx_train_vali <- sample(length(label_train_vali))
+    label_train_vali <- label_train_vali[new_idx_train_vali]
+    img_train_vali <- img_train_vali[new_idx_train_vali,,,]
+    ###
+    new_idx_train <- sample(length(label_train))
+    label_train <- label_train[new_idx_train]
+    img_train <- img_train[new_idx_train,,,]
+  }
   # empty data generator, for test / validation data
   no_augmentation <- image_data_generator()
   # data generator with data augmentation, for training data
