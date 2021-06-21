@@ -14,10 +14,10 @@ library(jpeg)
 path_vegetation_kml <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/vegetation/Export_ODK_clean_checked.kml"  # input
 path_vegetation_csv <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/vegetation/Export_ODK_clean_checked.csv"  # input
 path_vegetation_img <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/vegetation/images"  # input
-path_clips          <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/clips_1cm"  # output
+path_clips          <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/clips_2cm"  # output
 path_points_03      <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/points/03_understory"  # input
 path_points_04      <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/points/04_understory_stems"  # input
-path_rasters        <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters_1cm"  # input
+path_rasters        <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters_2cm"  # input
 
 # rasters to be clipped, results from collinearity check
 clip_these <- c("ortho", "anisotropy_max", "curvature_max", "linearity_max",
@@ -295,7 +295,7 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, selection, tile_s
   # read as kml + transform CRS
   plots <- st_transform(st_read(plot_path), crs_points)
   # get all rasters within raster_dir (without unscaled nDSM)
-  raster_list <- list.files(raster_dir, pattern=".tif", recursive=TRUE)
+  raster_list <- list.files(raster_dir, pattern="[.]tif", recursive=TRUE)
   raster_list <- raster_list[!grepl("nDSM_filtering", raster_list)]
   raster_list <- raster_list[!grepl("DTM", raster_list)]
   raster_list <- raster_list[!grepl("temp", raster_list)]
@@ -327,9 +327,16 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, selection, tile_s
       for (idx in 1:nrow(subset)) {
         plot <- subset[idx,]
         # clip raster with point + edge
-        center_x <- round(st_coordinates(plot)[,1], 2) # round on cm
-        center_y <- round(st_coordinates(plot)[,2], 2) # round on cm
-        rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge, ymin=center_y-edge, ymax=center_y+edge))
+        raster_res <- res(raster)[1]
+        center_x <- round(st_coordinates(plot)[,1]/raster_res)*raster_res # round on resolution cm
+        center_y <- round(st_coordinates(plot)[,2]/raster_res)*raster_res # round on resolution cm
+        if (edge %% 2 == 0) {
+          rectangle <- extent(c(xmin=center_x-edge, xmax=center_x+edge, ymin=center_y-edge, ymax=center_y+edge))
+        } else {  # if amount of pixels would be uneven --> rectangle center must be in a cell center
+          offset <- raster_res / 2
+          rectangle <- extent(c(xmin=center_x-edge-offset, xmax=center_x+edge-offset,
+                                ymin=center_y-edge-offset, ymax=center_y+edge-offset))
+        }
         clip <- crop(raster, rectangle)
         # get plot plot_ID & veg_ID
         plot_id <- strsplit(strsplit(plot$Description, ",")[[1]][1], " ")[[1]][2]
@@ -349,13 +356,13 @@ raster_clip_all <- function(raster_dir, plot_path, output_dir, selection, tile_s
 # EXECUTION
 ################################################################################
 
-# filter everything visually (don't execute this again!)
-new_path_vegetation <- filter_midstory_visually(path_vegetation_kml, path_vegetation_csv, path_vegetation_img,
-                                                path_points_03, path_points_04, tile_size, crs_points_raster)
-new_path_vegetation <- paste0(substr(path_vegetation_kml, 1, nchar(path_vegetation_kml)-4), "_filtered.kml")
+# # filter everything visually (don't execute this again)
+# new_path_vegetation <- filter_midstory_visually(path_vegetation_kml, path_vegetation_csv, path_vegetation_img,
+#                                                 path_points_03, path_points_04, tile_size, crs_points_raster)
+# newer_path_vegetation <- filter_overlaps(new_path_vegetation, tile_size, crs_points_raster)
 
-# filter overlapping tiles
-newer_path_vegetation <- filter_overlaps(new_path_vegetation, tile_size, crs_points_raster)
+# get new paths
+new_path_vegetation <- paste0(substr(path_vegetation_kml, 1, nchar(path_vegetation_kml)-4), "_filtered.kml")
 newer_path_vegetation <- paste0(substr(new_path_vegetation, 1, nchar(new_path_vegetation)-4), "_no_overlap.kml")
 
 # clipping rasters to point tiles
