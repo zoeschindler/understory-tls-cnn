@@ -1,0 +1,51 @@
+# flags
+FLAGS <- flags(flag_numeric("learning_rate", 1e-5),
+               flag_numeric("dropout", 0.5),
+               flag_numeric("l2_regularizer", 0.01),
+               flag_integer("epochs", 100),
+               flag_boolean("batch_normalization", FALSE),
+               flag_numeric("filter_factor", 1),
+               flag_numeric("band_selector", 0.5))
+               # flag_integer("batch_size", 32))
+
+# model
+model <- get_lenet5(width_length = width_length,
+                    n_bands = n_bands,
+                    n_band_selector = floor(n_bands*FLAGS$band_selector),
+                    n_classes = n_classes,
+                    filter_factor = FLAGS$filter_factor,
+                    l2_regualarizer = FLAGS$l2_regularizer,
+                    batch_normalization = FLAGS$batch_normalization)
+
+# compile
+model %>% compile(
+  optimizer = optimizer_rmsprop(lr = FLAGS$learning_rate,
+                                decay = FLAGS$learning_rate / FLAGS$epochs),
+  loss = "categorical_crossentropy",
+  metrics = c("accuracy")
+)
+
+# callbacks_list <- list(callback_early_stopping(monitor = "val_loss", mode = "min", patience = 10))
+
+# # fit
+# history <- model %>% fit(
+#   balanced$data_train,
+#   steps_per_epoch = floor(balanced$length_train/FLAGS$batch_size),
+#   epochs = FLAGS$epochs,
+#   batch_size = FLAGS$batch_size,
+#   callbacks = callbacks_list,
+#   validation_data = balanced$data_vali,
+#   validation_steps = floor(balanced$length_vali/FLAGS$batch_size)
+# )
+
+# fit
+history <- model %>% fit(
+  balanced$data_train,
+  steps_per_epoch = balanced$steps_train,
+  epochs = FLAGS$epochs,
+  # batch_size = FLAGS$batch_size,
+  # callbacks = callbacks_list,
+  validation_data = balanced$data_vali,
+  validation_steps = balanced$steps_vali
+)
+

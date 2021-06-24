@@ -50,7 +50,7 @@ strat_folds <- function(label_vector, folds) {
 
 ################################################################################
 
-balance_by_duplicates <- function(label_vector, image_array, max_per_image=5, max_length=300) {
+balance_by_duplicates <- function(label_vector, image_array, max_per_image, max_length) {
   # duplicates labels & images per label until:
   # - each images was duplicated max_per_image times
   # - amount of samples per label was raised to max_length respectively
@@ -118,7 +118,7 @@ tif_to_rds <- function(clip_dir, pixels, bands, folds=5, seed=123) {
 # DATA PREPARATION & AUGMENTATION
 ################################################################################
 
-create_dataset <- function(rdata_list, holdout_fold, pixels, bands, balance_classes=TRUE) {
+create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_image=5, max_length=300, balance_classes=TRUE) {
   # create dataset for CNN 
   # load test data
   raw_test <- readRDS(rdata_list[holdout_fold])
@@ -166,11 +166,11 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, balance_clas
   ###
   if(balance_classes) {
     # duplicate images depending on label frequency
-    duplicated_train_vali <- balance_by_duplicates(label_train_vali, img_train_vali)
+    duplicated_train_vali <- balance_by_duplicates(label_train_vali, img_train_vali, max_per_image, max_length)
     label_train_vali <- duplicated_train_vali$label
     img_train_vali <- duplicated_train_vali$img
     ###
-    duplicated_train <- balance_by_duplicates(label_train, img_train)
+    duplicated_train <- balance_by_duplicates(label_train, img_train, max_per_image, max_length)
     label_train <- duplicated_train$label
     img_train <- duplicated_train$img
     # shuffle datasets
@@ -220,11 +220,13 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, balance_clas
               data_train_vali = flow_train_vali,
               data_train = flow_train,
               data_vali = flow_vali,
-              steps_test = floor(length(label_test)/32),
-              steps_train_vali = floor(length(label_train_vali)/32),
-              steps_train = floor(length(label_train)/32),
-              steps_vali = floor(length(label_vali)/32)))
+              length_test = round(length(label_test)/32),
+              length_train_vali = round(length(label_train_vali)/32),
+              length_train = round(length(label_train)/32),
+              length_vali = round(length(label_vali)/32)))
 }
+
+# TODO: fllor / ceiling / round ?
 
 ################################################################################
 # LeNet-5
@@ -232,21 +234,31 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, balance_clas
 # https://www.kaggle.com/curiousprogrammer/lenet-5-cnn-with-keras-99-48 (based on this code)
 ################################################################################
 
-get_lenet5 <- function(width_length, n_bands, n_band_selector, n_classes, filter_factor) {
-  model <- keras_model_sequential() %>%
-    # band selector
-    layer_conv_2d(input_shape = c(width_length, width_length, n_bands), filters = n_band_selector,
-                  kernel_size = c(1,1), strides = c(1,1), padding="same") %>%
-    # main model
-    # block 1
-    layer_conv_2d(filters = 32 * filter_factor, kernel_size = c(5,5), activation = "relu", padding="same") %>%
-    layer_batch_normalization() %>%
+get_lenet5 <- function(width_length, n_bands, n_band_selector, n_classes, filter_factor=1,
+                       l2_regualarizer=0.01, batch_normalization=FALSE) {
+  model <- keras_model_sequential()
+  # band selector
+  model %>%
+    layer_conv_2d(input_shape = c(width_length, width_length, n_bands),
+                  filters = n_band_selector, kernel_size = c(1,1),
+                  strides = c(1,1), padding="same")
+  # main model
+  model %>%
+    layer_conv_2d(filters = 32 * filter_factor, kernel_size = c(5,5),
+                  activation = "relu", padding="same",
+                  kernel_regularizer = regularizer_l2(l2_regualarizer))
+  if(batch_normalization) {
+    model %>% layer_batch_normalization()
+  }
+  model %>%
     layer_max_pooling_2d() %>%
-    # block 2
-    layer_conv_2d(filters = 48 * filter_factor, kernel_size = c(5,5), activation = "relu", padding="valid") %>%
-    layer_batch_normalization() %>%
+    layer_conv_2d(filters = 48 * filter_factor, kernel_size = c(5,5), activation = "relu",
+                  padding="same", kernel_regularizer = regularizer_l2(l2_regualarizer))
+  if(batch_normalization) {
+    model %>% layer_batch_normalization()
+  }
+  model %>%
     layer_max_pooling_2d() %>%
-    # block 3
     layer_flatten() %>%
     layer_dense(units = 256 * filter_factor, activation = "relu") %>%
     layer_dropout(0.5) %>%
@@ -307,38 +319,38 @@ get_vgg16 <- function(width_length, n_bands, n_band_selector, n_classes, filter_
                   kernel_size = c(1,1), strides = c(1,1), padding="same") %>%
     # main model
     # block 1
-    layer_conv_2d(filters = 64 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_conv_2d(filters = 64 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
+    layer_conv_2d(filters = 64 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same", kernel_regularizer = regularizer_l2(0.001)) %>%
+    layer_conv_2d(filters = 64 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same", kernel_regularizer = regularizer_l2(0.001)) %>%
     #layer_batch_normalization() %>%
     layer_max_pooling_2d() %>% 
     # block 2
-    layer_conv_2d(filters = 128 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_conv_2d(filters = 128 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
+    layer_conv_2d(filters = 128 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same", kernel_regularizer = regularizer_l2(0.001)) %>%
+    layer_conv_2d(filters = 128 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same", kernel_regularizer = regularizer_l2(0.001)) %>%
     #layer_batch_normalization() %>%
     layer_max_pooling_2d() %>%
     # block 3
-    layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
+    layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same", kernel_regularizer = regularizer_l2(0.001)) %>%
+    layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same", kernel_regularizer = regularizer_l2(0.001)) %>%
+    layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same", kernel_regularizer = regularizer_l2(0.001)) %>%
     #layer_batch_normalization() %>%
     layer_max_pooling_2d() %>%
     # block 4
-    layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    #layer_batch_normalization() %>%
-    layer_max_pooling_2d() %>%
+    # layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same", kernel_regularizer = regularizer_l2()) %>%
+    # layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same", kernel_regularizer = regularizer_l2()) %>%
+    # layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same", kernel_regularizer = regularizer_l2()) %>%
+    # layer_batch_normalization() %>%
+    # layer_max_pooling_2d() %>%
     # block 5
-    layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
-    #layer_batch_normalization() %>%
-    layer_max_pooling_2d() %>%
+    # layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
+    # layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
+    # layer_conv_2d(filters = 512 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same") %>%
+    # #layer_batch_normalization() %>%
+    # layer_max_pooling_2d() %>%
     # block 6
     layer_flatten() %>%
-    layer_dense(units = 4096 * filter_factor, activation = "relu") %>%
+    layer_dense(units = 4096 * filter_factor / 2, activation = "relu") %>%
     layer_dropout(0.5) %>%
-    layer_dense(units = 4096 * filter_factor, activation = "relu") %>%
+    layer_dense(units = 4096 * filter_factor / 2, activation = "relu") %>%
     layer_dropout(0.5) %>%
     layer_dense(units = n_classes, activation = "softmax")
   return(model)
