@@ -11,6 +11,10 @@
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_train_cnn.R">08_train_cnn.R</a>: Daten laden & aufbereiten, CNNs trainieren, Hyperparameter optimieren <br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_experiment.R">08_experiment.R</a>: für `tfruns` Netzwerk mit Flags laden <br>
 
-## Workflow
+## Workflow: Data Preparation
 
-<img align="center" src="https://github.com/zoeschindler/masterarbeit/blob/main/Visualisierung_Workflow.png">
+<img align="center" src="https://github.com/zoeschindler/masterarbeit/blob/main/Visualisierung_Workflow_1.png">
+
+## Workflow: Cross-Validation
+
+<img align="center" src="https://github.com/zoeschindler/masterarbeit/blob/main/Visualisierung_Workflow_2.png">
