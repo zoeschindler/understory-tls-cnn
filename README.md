@@ -9,6 +9,7 @@
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/06_prepare_cnn_input.R">06_prepare_cnn_input.R</a>: einzelne Raster je nach CNN-Input-Kombination stacken & speichern ✓<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/07_setup_cnn.R">07_setup_cnn.R</a>: CNN Architektur & Daten-Input-Pipline mit Daten Augmentation aufsetzen <br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_train_cnn.R">08_train_cnn.R</a>: Daten laden & aufbereiten, CNNs trainieren, Hyperparameter optimieren <br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_experiment.R">08_experiment.R</a>: für `tfruns` Netzwerk mit Flags laden <br>
 
 ## Workflow
 
