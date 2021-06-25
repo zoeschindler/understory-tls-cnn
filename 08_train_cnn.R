@@ -55,6 +55,7 @@ time_training   <- c()
 test_accuracies <- c()
 all_runs <- c()
 
+# loop through all folds
 for (fold in 1:n_folds) {
   # load & prepare input data
   rdata_paths <- list.files(path_clips, pattern="[.]rds", full.names=TRUE)
@@ -69,8 +70,7 @@ for (fold in 1:n_folds) {
                                   batch_normalization = c(TRUE, FALSE),
                                   filter_factor = c(0.25, 0.5, 1, 1.25, 1.5),
                                   band_selector = c(0.25, 0.5, 0.75)),
-                     # batch_size = c(8, 16, 32)),
-                     sample = 0.001, # set higher later
+                     sample = 0.005, # set higher later
                      confirm = FALSE,
                      runs_dir = paste0(path_tfruns, "/fold_", fold))
   
@@ -108,7 +108,6 @@ for (fold in 1:n_folds) {
     balanced$data_train_vali,
     steps_per_epoch = balanced$steps_train_vali,
     epochs = best_run$flag_epochs,
-    # batch_size = FLAGS$batch_size,
     # callbacks = callbacks_list,
     # validation_data = balanced$data_test,
     # validation_steps = balanced$steps_test
@@ -125,11 +124,22 @@ for (fold in 1:n_folds) {
   test_accuracies[fold] <- results["accuracy"]
 }
 
+# save all run information to file
+write.csv(all_runs, paste0(dirname(path_experiment), "/", input_type, "_hyperparameter.csv"))
+
+# save best run information to file
+# TODO :(
+
 # TODO: do this with higher sample size,
 #       delete completely bad combinations,
 #       let it run completely
 
 # TODO: okay to use test data for callback? probably not? what's the alternative?
+
+################################################################################
+
+# make predictions & get data for confusion matrix
+# TODO :(
 
 ################################################################################
 
