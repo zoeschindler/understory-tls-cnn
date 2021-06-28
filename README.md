@@ -8,8 +8,10 @@
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/05_combine_rasters_vegetation.R">05_combine_rasters_vegetation.R</a>: Vegetations-Plots filtern, normalisieren und verschneiden mit Rastern ✓<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/06_prepare_cnn_input.R">06_prepare_cnn_input.R</a>: einzelne Raster je nach CNN-Input-Kombination stacken & speichern ✓<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/07_setup_cnn.R">07_setup_cnn.R</a>: CNN Architektur & Daten-Input-Pipline mit Daten Augmentation aufsetzen <br>
-* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_train_cnn.R">08_train_cnn.R</a>: Daten laden & aufbereiten, CNNs trainieren, Hyperparameter optimieren <br>
-* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_experiment.R">08_experiment.R</a>: für `tfruns` Netzwerk mit Flags laden <br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_train_cnn.R">08_train_cnn.R</a>: Daten laden & aufbereiten, CNNs trainieren, Hyperparameter optimieren (in progress)<br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_experiment.R">08_experiment.R</a>: für `tfruns` Netzwerk mit Flags laden (in progress)<br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/09_visualization_tables.R ">09_visualization_tables.R</a>: Vorbereitung & Durchführung Ergebnis_visualisierungen (todo)<br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/10_statistical_analysis.R">10_statistical_analysis.R</a>: statistische Analyse der Ergebnisse (todo)<br>
 
 ## Workflow: Data Preparation
 
