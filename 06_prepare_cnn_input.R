@@ -9,9 +9,9 @@ library(sf)
 library(raster)
 
 # set paths
-path_clips  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips"  # input
-path_output <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models/input"  # output
-path_plot   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_checked.kml" # input
+path_clips  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/clips"  # input
+path_output <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/models/input"  # output
+path_plot   <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/vegetation/Export_ODK_clean_checked.kml" # input
 
 # set parameters
 crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +vunits=m +no_defs"

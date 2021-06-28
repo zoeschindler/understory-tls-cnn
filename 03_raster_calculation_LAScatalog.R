@@ -271,8 +271,8 @@ for (area_ID in area_IDs) {
   opt_chunk_size(ctg_understory) <- chunk_size
   
   # # execute - input for CNN & filtering vegetation plots
-  raster_create_all_ctg(ctg_understory, raster_resolution, path_rasters, paste0("area_", area_ID), rescale=FALSE)
-  warnings()
+  # raster_create_all_ctg(ctg_understory, raster_resolution, path_rasters, paste0("area_", area_ID), rescale=FALSE)
+  # warnings()
   
   # use many cores for this
   # raster_nDSM_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/nDSM"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
@@ -281,7 +281,7 @@ for (area_ID in area_IDs) {
   # raster_reflectance_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/reflectance"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
   
   # use single core for this
-  # raster_geometry_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/geometry"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
+  raster_geometry_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/geometry"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
 }
 
 ################################################################################

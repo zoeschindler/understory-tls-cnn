@@ -15,7 +15,7 @@ model <- get_lenet5(width_length = width_length,
                     n_band_selector = floor(n_bands*FLAGS$band_selector),
                     n_classes = n_classes,
                     filter_factor = FLAGS$filter_factor,
-                    l2_regualarizer = FLAGS$l2_regularizer,
+                    l2_regularizer = FLAGS$l2_regularizer,
                     batch_normalization = FLAGS$batch_normalization)
 
 # compile
@@ -26,7 +26,8 @@ model %>% compile(
   metrics = c("accuracy")
 )
 
- callbacks_list <- list(callback_early_stopping(monitor = "val_loss", mode = "min", patience = 10))
+# set callbacks
+callbacks_list <- list(callback_early_stopping(monitor = "val_loss", mode = "min", patience = 10))
 
 # fit
 history <- model %>% fit(

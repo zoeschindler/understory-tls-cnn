@@ -10,7 +10,7 @@ library(lidR)
 library(sf)
 
 # set path
-points_path  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/points"
+points_path <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/points"
 kml_path    <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/scan_positions/2021-05-03 wino np earth.kml"
 setwd(points_path)
 

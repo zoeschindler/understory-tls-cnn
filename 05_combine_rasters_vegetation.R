@@ -25,7 +25,7 @@ clip_these <- c("ortho", "anisotropy_max", "curvature_max", "linearity_max",
                 "point_density", "reflectance_mean", "reflectance_sd")
 
 # set parameter
-tile_size <- 0.5
+tile_size <- 0.5  # in meters
 crs_points_raster <- as.character(crs(readTLSLAScatalog(path_points_03)))
 
 ################################################################################

@@ -136,6 +136,9 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
       rm(raw_train_vali)
     }
   }
+  # replace NA with -1 in images
+  img_test[is.na(img_test)] <- -1
+  img_train_vali[is.na(img_train_vali)] <- -1
   # make stratified split
   fold_indices <- strat_folds(label_train_vali, 5)  # 5 folds -> use 20% for validation
   indices_train <- unlist(fold_indices[1:4])
@@ -161,21 +164,6 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
   label_vali <- label_vali[new_idx_vali]
   img_vali <- img_vali[new_idx_vali,,,]
   ###
-  # # rescaling training & validation
-  # min_train <- apply(img_train, 4, min, na.rm=T)
-  # max_train <- apply(img_train, 4, max, na.rm=T)
-  # img_train <- (img_train-min_train)/(max_train-min_train)
-  # img_vali  <- (img_vali -min_train)/(max_train-min_train)
-  # # rescaling combined training & validation & testing
-  # min_train_vali <- apply(img_train_vali, 4, min, na.rm=T)
-  # max_train_vali <- apply(img_train_vali, 4, max, na.rm=T)
-  # img_train_vali <- (img_train_vali-min_train_vali)/(max_train_vali-min_train_vali)
-  # img_test       <- (img_test      -min_train_vali)/(max_train_vali-min_train_vali)
-  # replace NA with -1 in images
-  img_test[is.na(img_test)] <- -1
-  img_train_vali[is.na(img_train_vali)] <- -1
-  img_train[is.na(img_train)] <- -1
-  img_vali[is.na(img_vali)] <- -1
   if(balance_classes) {
     # duplicate images depending on label frequency
     duplicated_train_vali <- balance_by_duplicates(label_train_vali, img_train_vali, max_per_image, max_length)
@@ -247,7 +235,7 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
 ################################################################################
 
 get_lenet5 <- function(width_length, n_bands, n_band_selector, n_classes, filter_factor=1,
-                       l2_regualarizer=0.01, batch_normalization=FALSE) {
+                       l2_regularizer=0.01, batch_normalization=FALSE) {
   model <- keras_model_sequential()
   # band selector
   model %>%
@@ -258,14 +246,14 @@ get_lenet5 <- function(width_length, n_bands, n_band_selector, n_classes, filter
   model %>%
     layer_conv_2d(filters = 32 * filter_factor, kernel_size = c(5,5),
                   activation = "relu", padding="same",
-                  kernel_regularizer = regularizer_l2(l2_regualarizer))
+                  kernel_regularizer = regularizer_l2(l2_regularizer))
   if(batch_normalization) {
     model %>% layer_batch_normalization()
   }
   model %>%
     layer_max_pooling_2d() %>%
     layer_conv_2d(filters = 48 * filter_factor, kernel_size = c(5,5), activation = "relu",
-                  padding="same", kernel_regularizer = regularizer_l2(l2_regualarizer))
+                  padding="same", kernel_regularizer = regularizer_l2(l2_regularizer))
   if(batch_normalization) {
     model %>% layer_batch_normalization()
   }

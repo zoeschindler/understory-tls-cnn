@@ -9,14 +9,14 @@ library(keras)
 library(tfruns)
 
 # load functions
-source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/07_setup_cnn.R")
+source("C:/Users/Zoe/Documents/understory_classification/5_Analyse/07_setup_cnn.R")
 
 # set paths
-path_experiment <- "H:/Daten/Studium/2_Master/4_Semester/5_Analyse/08_experiment.R"  # input
-path_clips      <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/model_input_2cm/tls_rgb_geo"  # input
+path_experiment <- "C:/Users/Zoe/Documents/understory_classification/5_Analyse/08_experiment.R"  # input
+path_clips      <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/model_input_1cm/tls_rgb_geo"  # input
 input_type      <- basename(path_clips)  # input
-path_tfruns     <- paste0("H:/Daten/Studium/2_Master/4_Semester/4_Daten/tfruns/", input_type)  # output
-path_models     <- paste0("H:/Daten/Studium/2_Master/4_Semester/4_Daten/models/", input_type)  # output
+path_tfruns     <- paste0("C:/Users/Zoe/Documents/understory_classification/4_Daten/tfruns_1cm/", input_type)  # output
+path_models     <- paste0("C:/Users/Zoe/Documents/understory_classification/4_Daten/models/", input_type)  # output
 
 # create folders
 check_create_dir(dirname(path_tfruns))
@@ -27,7 +27,7 @@ check_create_dir(path_models)
 # set data input parameters
 n_folds <- 5  # number of folds for cross-validation
 n_classes <- 5  # number of understory classes
-width_length <- 25  # input image dimensions
+width_length <- 50  # input image dimensions
 if (input_type == "tls") {
   n_bands <- 4
 } else if (input_type == "tls_geo") {
@@ -63,14 +63,14 @@ for (fold in 1:n_folds) {
   
   # try hyperparameter combinations
   runs <- tuning_run(path_experiment,
-                     flags = list(learning_rate = c(1e-3, 1e-4, 1e-5),
-                                  dropout = c(0.2, 0.3, 0.4),
-                                  l2_regularizer = c(0, 0.001, 0.01),
-                                  epochs = c(50, 100, 150),
-                                  batch_normalization = c(TRUE, FALSE),
-                                  filter_factor = c(0.25, 0.5, 1, 1.25, 1.5),
-                                  band_selector = c(0.25, 0.5, 0.75)),
-                     sample = 0.005, # set higher later
+                     flags = list(learning_rate = c(1e-3, 1e-4),
+                                  dropout = c(0.3, 0.4, 0.5),
+                                  l2_regularizer = c(0, 0.0001, 0.001),
+                                  epochs = c(100),
+                                  batch_normalization = c(FALSE),
+                                  filter_factor = c(0.5, 0.75, 1),
+                                  band_selector = c(0.5, 0.75, 1)),
+                     sample = 0.25, # set higher later
                      confirm = FALSE,
                      runs_dir = paste0(path_tfruns, "/fold_", fold))
   
@@ -85,7 +85,7 @@ for (fold in 1:n_folds) {
                       n_band_selector = floor(n_bands*best_run$flag_band_selector),
                       n_classes = n_classes,
                       filter_factor = best_run$flag_filter_factor,
-                      l2_regualarizer = best_run$flag_l2_regularizer,
+                      l2_regularizer = best_run$flag_l2_regularizer,
                       batch_normalization = best_run$flag_batch_normalization)
   
   # compile "best network"
@@ -114,6 +114,8 @@ for (fold in 1:n_folds) {
   )
   end_time <- Sys.time()
   
+  # TODO: save model!
+  
   # evaluate "best network"
   results <- model %>% evaluate(balanced$data_test, steps=balanced$steps_test)
   
@@ -125,7 +127,61 @@ for (fold in 1:n_folds) {
 }
 
 # save all run information to file
-write.csv(all_runs, paste0(dirname(path_experiment), "/", input_type, "_hyperparameter.csv"))
+all_runs_data <- all_runs[grepl("metric_", names(all_runs)) | grepl("flag_", names(all_runs)) | grepl("epoch", names(all_runs))]
+write.csv(all_runs_data, paste0(dirname(path_experiment), "/", input_type, "_hyperparameter.csv"))
+
+################## TESTING
+library(ggplot2)
+
+all_runs <- c()
+for (fold in 1:5) {
+  fold_runs <- ls_runs(runs_dir = paste0(path_tfruns, "/fold_", fold))
+  all_runs <- rbind(all_runs, fold_runs)
+}
+View(all_runs)
+
+
+ggplot(all_runs) +
+  geom_point(aes(x=metric_val_accuracy, y=metric_val_loss))
+ggplot(all_runs) +
+  geom_point(aes(x=metric_val_accuracy, y=metric_accuracy))
+###
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_learning_rate), y=metric_val_accuracy))
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_learning_rate), y=metric_val_loss))
+###
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_dropout), y=metric_val_accuracy))
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_dropout), y=metric_val_loss))
+###
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_l2_regularizer), y=metric_val_accuracy))
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_l2_regularizer), y=metric_val_loss))
+###
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_epochs), y=metric_val_accuracy))
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_epochs), y=metric_val_loss))
+###
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_batch_normalization), y=metric_val_accuracy))
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_batch_normalization), y=metric_val_loss))
+###
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_filter_factor), y=metric_val_accuracy))
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_filter_factor), y=metric_val_loss))
+###
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_band_selector), y=metric_val_accuracy))
+ggplot(all_runs) +
+  geom_boxplot(aes(x=as.factor(flag_band_selector), y=metric_val_loss))
+
+####################################
 
 # save best run information to file
 # TODO :(
