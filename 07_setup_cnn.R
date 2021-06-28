@@ -88,6 +88,8 @@ tif_to_rds <- function(clip_dir, pixels, bands, folds=5, seed=123) {
   # get all labels
   img_labels_all <- sapply(strsplit(basename(img_paths_all), "_"), "[[", 1)
   img_labels_all <- as.numeric(as.factor(img_labels_all))
+  # TODO: save which label corresponds to which number
+  
   # make stratified split
   fold_indices <- strat_folds(img_labels_all, folds)
   # loop through all folds
@@ -111,6 +113,8 @@ tif_to_rds <- function(clip_dir, pixels, bands, folds=5, seed=123) {
     saveRDS(data_list, file = paste0(clip_dir, "/images_fold_", l, ".rds"))
     output_paths <- c(output_paths, paste0(clip_dir, "/images_fold_", l, ".rds"))
   }
+  # remove seed
+  set.seed(NULL)
   return(output_paths)
 }
 
@@ -118,7 +122,7 @@ tif_to_rds <- function(clip_dir, pixels, bands, folds=5, seed=123) {
 # DATA PREPARATION & AUGMENTATION
 ################################################################################
 
-create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_image=5, max_length=300, balance_classes=TRUE) {
+create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_image=15, max_length=300, balance_classes=TRUE) {  # vorher 5 & 300
   # create dataset for CNN 
   # load test data
   raw_test <- readRDS(rdata_list[holdout_fold])
@@ -188,9 +192,9 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
   do_augmentation <- image_data_generator(
     fill_mode = "reflect",
     rotation_range = 10,
-    #width_shift_range = 0.02,
-    #height_shift_range = 0.02,
-    #shear_range = 10,
+    width_shift_range = 0.05,
+    height_shift_range = 0.05,
+    shear_range = 10,
     horizontal_flip = TRUE,
     vertical_flip = TRUE)
   # get number of classes
@@ -199,7 +203,8 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
   flow_test <- flow_images_from_data(
     x = img_test,
     y = to_categorical(label_test)[,2:(label_classes+1)],
-    generator = no_augmentation)
+    generator = no_augmentation,
+    batch_size=1)
   # generate batches, for training + validation data
   flow_train_vali <- flow_images_from_data(
     x = img_train_vali,
@@ -214,19 +219,18 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
   flow_vali <- flow_images_from_data(
     x = img_vali,
     y = to_categorical(label_vali)[,2:(label_classes+1)],
-    generator = no_augmentation)
+    generator = no_augmentation,
+    batch_size=1)
   # return ready to use image_generators & steps per epoch
   return(list(data_test = flow_test,
               data_train_vali = flow_train_vali,
               data_train = flow_train,
               data_vali = flow_vali,
-              length_test = round(length(label_test)/32),
-              length_train_vali = round(length(label_train_vali)/32),
-              length_train = round(length(label_train)/32),
-              length_vali = round(length(label_vali)/32)))
+              length_test = length(label_test),
+              length_vali = length(label_vali),
+              steps_train_vali = round(length(label_train_vali)/32),
+              steps_train = round(length(label_train)/32)))
 }
-
-# TODO: fllor / ceiling / round ?
 
 ################################################################################
 # LeNet-5
@@ -268,7 +272,7 @@ get_lenet5 <- function(width_length, n_bands, n_band_selector, n_classes, filter
   return(model)
 }
 
-  
+
 ################################################################################
 # AlexNet
 # https://papers.nips.cc/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf
