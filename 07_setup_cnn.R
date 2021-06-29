@@ -82,14 +82,18 @@ tif_to_rds <- function(clip_dir, pixels, bands, folds=5, seed=123) {
   # set seed
   set.seed(seed)
   # get all file paths, excluding smallest groups
-  img_paths_all <- list.files(clip_dir, pattern=".tif", full.names=TRUE)
+  img_paths_all <- list.files(clip_dir, pattern="[.]tif", full.names=TRUE)
   img_paths_all <- img_paths_all[!grepl("grass", img_paths_all)]
   img_paths_all <- img_paths_all[!grepl("rock", img_paths_all)]
   # get all labels
-  img_labels_all <- sapply(strsplit(basename(img_paths_all), "_"), "[[", 1)
-  img_labels_all <- as.numeric(as.factor(img_labels_all))
-  # TODO: save which label corresponds to which number
-  
+  img_labels_all <- sapply(strsplit(basename(img_paths_all), "[.]"), "[[", 1)
+  img_labels_all <- gsub("[[:digit:]]","", img_labels_all)
+  img_labels_all <- sapply(img_labels_all, function(chars) substr(chars, 1, nchar(chars)-1))
+  img_labels_old <- as.factor(img_labels_all)
+  img_labels_all <- as.numeric(img_labels_old)
+  # save which label corresponds to which number
+  label_lookup <- data.frame("old" = unique(img_labels_old), "new" = unique(img_labels_all))
+  write.csv(label_lookup, paste0(clip_dir, "/label_lookup.csv"), row.names = FALSE)
   # make stratified split
   fold_indices <- strat_folds(img_labels_all, folds)
   # loop through all folds
@@ -204,7 +208,7 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
     x = img_test,
     y = to_categorical(label_test)[,2:(label_classes+1)],
     generator = no_augmentation,
-    batch_size=1)
+    batch_size=1, shuffle=FALSE)
   # generate batches, for training + validation data
   flow_train_vali <- flow_images_from_data(
     x = img_train_vali,
@@ -220,7 +224,7 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
     x = img_vali,
     y = to_categorical(label_vali)[,2:(label_classes+1)],
     generator = no_augmentation,
-    batch_size=1)
+    batch_size=1, shuffle=FALSE)
   # return ready to use image_generators & steps per epoch
   return(list(data_test = flow_test,
               data_train_vali = flow_train_vali,

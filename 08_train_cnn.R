@@ -13,7 +13,7 @@ library(tfruns)
 source("C:/Users/Zoe/Documents/understory_classification/5_Analyse/07_setup_cnn.R")
 
 # set paramters
-resolution <- 0.02
+resolution <- 0.01
 input_type <- "tls_rgb_geo"
 
 # set paths
@@ -31,7 +31,7 @@ check_create_dir(path_models)
 # set data input parameters
 n_folds <- 5  # number of folds for cross-validation
 n_classes <- 5  # number of understory classes
-width_length <- 25  # input image dimensions (pixels)
+width_length <- 50  # input image dimensions (pixels)
 if (input_type == "tls") {
   n_bands <- 4
 } else if (input_type == "tls_geo") {
@@ -76,7 +76,7 @@ for (fold in 1:n_folds) {
                                   batch_normalization = c(FALSE, TRUE),
                                   filter_factor = c(0.5, 0.75, 1),
                                   band_selector = c(0.5, 0.75, 1)),
-                     sample = 0.1, # set higher later
+                     sample = 0.001, # set higher later
                      confirm = FALSE,
                      runs_dir = paste0(path_tfruns, "/fold_", fold))
   
@@ -140,15 +140,15 @@ for (fold in 1:n_folds) {
 
 # save all run information to file
 all_runs_data <- all_runs[grepl("metric_", names(all_runs)) | grepl("flag_", names(all_runs)) | grepl("epoch", names(all_runs))]
-write.csv(all_runs_data, paste0(path_models, "/all_hyperparameters.csv"))
+write.csv(all_runs_data, paste0(path_models, "/all_hyperparameters.csv"), row.names=FALSE)
 
 # save best run information to file
 best_runs_data <- best_runs[grepl("metric_", names(best_runs)) | grepl("flag_", names(best_runs)) | grepl("epoch", names(best_runs))]
 best_runs_data <- cbind(best_runs_data, data.frame("test_accuracy" = test_accuracies, "train_time" = time_training))
-write.csv(best_runs_data, paste0(path_models, "/best_hyperparameters.csv"))
+write.csv(best_runs_data, paste0(path_models, "/best_hyperparameters.csv"), row.names=FALSE)
 
 # save predictions to file
-write.csv(predictions, paste0(path_models, "/prediction_truth_fold.csv"))
+write.csv(predictions, paste0(path_models, "/prediction_truth_fold.csv"), row.names=FALSE)
 
 
 ################### TESTING STUFF

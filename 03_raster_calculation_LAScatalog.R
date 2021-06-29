@@ -102,7 +102,7 @@ plan(sequential)
 plan(multisession, workers=11L)
 
 # get all area IDs
-area_IDs <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=".las")
+area_IDs <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern="[.]las")
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 for (area_ID in area_IDs) {
@@ -135,7 +135,7 @@ plan(sequential)
 plan(multisession, workers=5L)
 
 # get all area IDs
-area_IDs <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=".las")
+area_IDs <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern="[.]las")
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 for (area_ID in area_IDs) {
@@ -175,7 +175,7 @@ plan(sequential)
 plan(multisession, workers=7L)
 
 # get all area IDs
-area_IDs <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=".las")
+area_IDs <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern="[.]las")
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 ################################################################################
@@ -254,7 +254,7 @@ plan(multisession, workers=7L)
 ################################################################################
 
 # get all area IDs
-area_IDs <- list.files(paste0(dirname(path_points), "/03_understory"), pattern=".las")
+area_IDs <- list.files(paste0(dirname(path_points), "/03_understory"), pattern="[.]las")
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 for (area_ID in area_IDs) {
@@ -270,9 +270,9 @@ for (area_ID in area_IDs) {
   opt_chunk_buffer(ctg_understory) <- buffer_size
   opt_chunk_size(ctg_understory) <- chunk_size
   
-  # execute - input for CNN & filtering vegetation plots
-  raster_create_all_ctg(ctg_understory, raster_resolution, path_rasters, paste0("area_", area_ID), rescale=FALSE)
-  warnings()
+  # # execute - input for CNN & filtering vegetation plots
+  # raster_create_all_ctg(ctg_understory, raster_resolution, path_rasters, paste0("area_", area_ID), rescale=FALSE)
+  # warnings()
   
   # use many cores for this
   # raster_nDSM_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/nDSM"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
@@ -281,13 +281,13 @@ for (area_ID in area_IDs) {
   # raster_reflectance_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/reflectance"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
   
   # use single core for this
-  # raster_geometry_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/geometry"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
+  raster_geometry_ctg.LAScatalog(ctg_understory, raster_resolution, paste0(path_rasters, "/geometry"), paste0("area_", area_ID), rescale=FALSE, saving=TRUE)
 }
 
 ################################################################################
 
 # get all area IDs
-area_IDs <- list.files(paste0(dirname(path_points), "/04_understory_stems"), pattern=".las")
+area_IDs <- list.files(paste0(dirname(path_points), "/04_understory_stems"), pattern="[.]las")
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 for (area_ID in area_IDs) {

@@ -19,7 +19,7 @@ path_rasters  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/raste
 rescale_values <- function(folder) {
   # gets minimum & maximum values for rescaling
   # get all raster
-  raster_list <- list.files(folder, pattern=".tif", full.names=TRUE, recursive=TRUE)
+  raster_list <- list.files(folder, pattern="[.]tif", full.names=TRUE, recursive=TRUE)
   raster_list <- raster_list[!grepl("temp", raster_list)]
   # set up empty lookup list
   lookup_list <- list()
@@ -60,7 +60,7 @@ rescale_values <- function(folder) {
 ################################################################################
 
 # get all relevant raster paths
-raster_list <- list.files(path_rasters, pattern=".tif", recursive=TRUE, full.names=TRUE)
+raster_list <- list.files(path_rasters, pattern="[.]tif", recursive=TRUE, full.names=TRUE)
 raster_list <- raster_list[!grepl("nDSM_filtering", raster_list)]  # remove unscales nDSM from list
 raster_list <- raster_list[!grepl("DTM", raster_list)]  # remove DTM from list
 raster_list <- raster_list[!grepl("ortho", raster_list)]  # I want to keep this anyway
