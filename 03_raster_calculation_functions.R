@@ -12,7 +12,7 @@ library(TreeLS)
 path_eigenvalues <- "C:/Users/Zoe/Documents/understory_classification/5_Analyse/eigen_decomposition.cpp"
 
 # set parameters
-n_cores <- 6
+n_cores <- 16
 
 ################################################################################
 # HELPER FUNCTIONS
