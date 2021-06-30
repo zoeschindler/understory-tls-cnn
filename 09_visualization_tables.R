@@ -135,7 +135,7 @@ raster_vals <- na.omit(raster_vals)
 ggplot(raster_vals[raster_vals$type == "nDSM",], aes(x = label, y = values)) +
   stat_boxplot(geom = 'errorbar', width = 0.15) +
   geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75) +
-  xlab("\nVegetation Label") + ylab("nDSM Height\n") +
+  xlab("\nVegetation Label") + ylab("Vegetation Height\n") +
   scale_x_discrete(labels = c('Blueberry','Deadwood','Forest Floor', "Moss", "Spruce")) +
   scale_fill_manual(values=own_colors) +
   theme_light() +
@@ -195,6 +195,7 @@ ggplot(raster_vals[raster_vals$type == "planarity_mean",], aes(x = label, y = va
 ################################################################################
 # CONFUSION MATRICES
 ################################################################################
+# https://stackoverflow.com/questions/49664757/how-to-assign-multiple-colour-scales-to-a-dataset-in-ggplot2-assign-different-c
 
 # get prediction paths
 csv_paths <- list.files(path_models, pattern="prediction_truth_fold.csv", recursive=TRUE, full.names=TRUE)
@@ -211,7 +212,7 @@ for (i in 1:nrow(label_df)) {
 }
 
 # select single fold ?
-# pred_df <- pred_df[pred_df$fold == 4,]
+# pred_df <- pred_df[pred_df$fold == 5,]
 
 # make confusion matrix
 conf <- confusionMatrix(as.factor(pred_df$predictions), as.factor(pred_df$truth))
@@ -224,16 +225,40 @@ conf_stat <- round(data.frame(conf$overall),2)
 # add percent values
 conf_data$Prob <- round(data.frame(prop.table(conf$table))$Freq*100,2)
 
+# reverse order of predictions
+conf_data$Prediction <- factor(conf_data$Prediction, levels=rev(levels(conf_data$Prediction)))
+
+# create color scale for each prediction category
+color_scale <- c("blueberry" = own_colors_named$blue,
+                 "dead_wood" = own_colors_named$blue,
+                 "forest_floor" = own_colors_named$blue,
+                 "moss" = own_colors_named$blue,
+                 "spruce" = own_colors_named$blue)
+
+# scale values for color stuff
+conf_data <- conf_data %>%
+  group_by(Reference) %>%
+  mutate(Freq_scaled = (Freq-min(Freq))/(max(Freq)-min(Freq))) %>%
+  ungroup() %>%
+  arrange(Reference)
+
 # plot confusion matrix
-ggplot(data = conf_data, aes(x=Reference, y=Prediction, fill=Freq)) +
-  geom_tile() + coord_equal() +
-  geom_text(aes(label = Freq), color = 'gray30', size = 4) +
-  xlab("\nTruth") + ylab("Prediction\n") +
-  scale_x_discrete(labels = c('Blueberry','Deadwood','Forest Floor', "Moss", "Spruce")) +
-  scale_y_discrete(labels = c('Blueberry','Deadwood','Forest Floor', "Moss", "Spruce")) +
-  scale_fill_gradient(low="white", high=own_colors_named$blue) +
+ggplot(data = conf_data, aes(x=Reference, y=Prediction, fill=Reference, alpha=Freq_scaled)) +
+  geom_tile(fill = "white", alpha = 1) +
+  geom_tile(color = "gray50") + coord_equal() +
+  geom_text(aes(label = Freq), color = 'gray20', size = 4, alpha=1) +
+  xlab(paste0("\nReference (n = ", sum(conf_data$Freq), ")")) + ylab("Prediction\n") +
+  scale_x_discrete(labels = c(paste0("Blueberry\n(n = ", sum(conf_data$Freq[conf_data$Reference == "blueberry"]), ")"),
+                              paste0("Deadwood\n(n = ", sum(conf_data$Freq[conf_data$Reference == "dead_wood"]), ")"),
+                              paste0("Forest Floor\n(n = ", sum(conf_data$Freq[conf_data$Reference == "forest_floor"]), ")"),
+                              paste0("Moss\n(n = ", sum(conf_data$Freq[conf_data$Reference == "moss"]), ")"),
+                              paste0("Spruce\n(n = ", sum(conf_data$Freq[conf_data$Reference == "spruce"]), ")"))) +
+  scale_y_discrete(labels = rev(c("Blueberry","Deadwood","Forest Floor", "Moss", "Spruce"))) +
+  scale_fill_manual(values = color_scale) +
   theme_light() +
-  theme(text = element_text(size=14, family="Calibri"), legend.position="none")
+  theme(text = element_text(size=14), legend.position="none") +
+  ggtitle(paste0("Confusion Matrix, LeNet5, 2cm, all folds\nAccuracy ",
+                 round(conf$overall["Accuracy"]*100,2), "%"))
 
 ################################################################################
 # ACCURACY COMPARISON INPUTS
