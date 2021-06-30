@@ -21,7 +21,7 @@ FLAGS <- flags(flag_numeric("learning_rate", 1e-4),
 # MODEL
 ################################################################################
 
-model <- lenet5(
+model <- get_lenet5(
   width_length = width_length,
   n_bands = n_bands,
   n_band_selector = floor(n_bands*FLAGS$band_selector),
