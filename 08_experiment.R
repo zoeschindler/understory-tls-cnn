@@ -9,9 +9,10 @@
 ################################################################################
 
 FLAGS <- flags(flag_numeric("learning_rate", 1e-4),
+               flag_numeric("decay_multi", 1/100),
+               flag_numeric("l2_regularizer", 0.001),
                flag_numeric("dropout", 0.5),
-               flag_numeric("l2_regularizer", 0.0001),
-               flag_integer("epochs", 100),
+               flag_integer("epochs", 200),
                flag_boolean("batch_normalization", FALSE),
                flag_numeric("filter_factor", 1),
                flag_numeric("band_selector", 0.75))
@@ -20,13 +21,15 @@ FLAGS <- flags(flag_numeric("learning_rate", 1e-4),
 # MODEL
 ################################################################################
 
-model <- get_lenet5(width_length = width_length,
-                    n_bands = n_bands,
-                    n_band_selector = floor(n_bands*FLAGS$band_selector),
-                    n_classes = n_classes,
-                    filter_factor = FLAGS$filter_factor,
-                    l2_regularizer = FLAGS$l2_regularizer,
-                    batch_normalization = FLAGS$batch_normalization)
+model <- lenet5(
+  width_length = width_length,
+  n_bands = n_bands,
+  n_band_selector = floor(n_bands*FLAGS$band_selector),
+  n_classes = n_classes,
+  filter_factor = FLAGS$filter_factor,
+  l2_regularizer = FLAGS$l2_regularizer,
+  dropout = FLAGS$dropout,
+  batch_normalization = FLAGS$batch_normalization)
 
 ################################################################################
 # COMPILE
@@ -34,7 +37,7 @@ model <- get_lenet5(width_length = width_length,
 
 model %>% compile(
   optimizer = optimizer_rmsprop(lr = FLAGS$learning_rate,
-                                decay = FLAGS$learning_rate / FLAGS$epochs),
+                                decay = FLAGS$learning_rate * FLAGS$decay_multi),
   loss = "categorical_crossentropy",
   metrics = c("accuracy")
 )
