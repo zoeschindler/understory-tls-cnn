@@ -13,8 +13,9 @@ library(tfruns)
 source("C:/Users/Zoe/Documents/understory_classification/5_Analyse/07_setup_cnn.R")
 
 # set paramters
-resolution <- 0.01
+resolution <- 0.02
 input_type <- "tls_rgb_geo"
+tile_size  <- 0.5
 
 # set paths
 path_experiment <- "C:/Users/Zoe/Documents/understory_classification/5_Analyse/08_experiment.R"  # input
@@ -31,7 +32,7 @@ check_create_dir(path_models)
 # set data input parameters
 n_folds <- 5  # number of folds for cross-validation
 n_classes <- 5  # number of understory classes
-width_length <- 50  # input image dimensions (pixels)
+width_length <- tile_size / resolution  # input image dimensions (pixels)
 if (input_type == "tls") {
   n_bands <- 4
 } else if (input_type == "tls_geo") {
@@ -70,35 +71,37 @@ for (fold in 1:n_folds) {
   # try hyperparameter combinations
   runs <- tuning_run(path_experiment,
                      flags = list(learning_rate = c(1e-3, 1e-4, 1e-5),
-                                  dropout = c(0.3, 0.4, 0.5),
+                                  decay_multi = c(1/10, 1/100),
                                   l2_regularizer = c(0, 0.0001, 0.001),
-                                  epochs = c(100),
-                                  batch_normalization = c(FALSE, TRUE),
+                                  dropout = c(0.3, 0.4, 0.5),
+                                  epochs = c(200),
+                                  batch_normalization = c(FALSE),
                                   filter_factor = c(0.5, 0.75, 1),
                                   band_selector = c(0.5, 0.75, 1)),
-                     sample = 0.001, # set higher later
+                     sample = 0.1, # set higher later
                      confirm = FALSE,
                      runs_dir = paste0(path_tfruns, "/fold_", fold))
   
   # get best hyperparameter values
   all_runs <- rbind(all_runs, runs)
-  # best_run <- ls_runs(order = metric_val_loss, decreasing=F, runs_dir = paste0(path_tfruns, "/fold_", fold))[1,]
   best_run <- ls_runs(order = metric_val_accuracy, decreasing=T, runs_dir = paste0(path_tfruns, "/fold_", fold))[1,]
   best_runs <- rbind(best_runs, best_run)
   
   # set up "best network"
-  model <- get_lenet5(width_length = width_length,
-                      n_bands = n_bands,
-                      n_band_selector = floor(n_bands*best_run$flag_band_selector),
-                      n_classes = n_classes,
-                      filter_factor = best_run$flag_filter_factor,
-                      l2_regularizer = best_run$flag_l2_regularizer,
-                      batch_normalization = best_run$flag_batch_normalization)
+  model <- lenet5(
+    width_length = width_length,
+    n_bands = n_bands,
+    n_band_selector = floor(n_bands*best_run$flag_band_selector),
+    n_classes = n_classes,
+    filter_factor = best_run$flag_filter_factor,
+    l2_regularizer = best_run$flag_l2_regularizer,
+    dropout = best_run$flag_dropout,
+    batch_normalization = best_run$flag_batch_normalization)
   
   # compile "best network"
   model %>% compile(
     optimizer = optimizer_rmsprop(lr = best_run$flag_learning_rate,
-                                  decay = best_run$flag_learning_rate / best_run$flag_epochs),
+                                  decay = best_run$flag_learning_rate * best_run$flag_decay_multi),
     loss = "categorical_crossentropy",
     metrics = c("accuracy")
   )
@@ -108,8 +111,7 @@ for (fold in 1:n_folds) {
   history <- model %>% fit_generator(
     balanced$data_train_vali,
     steps_per_epoch = balanced$steps_train_vali,
-    #epochs = best_run$flag_epochs,  # old
-    epochs = best_run$epochs_completed,  # new
+    epochs = best_run$epochs_completed,
   )
   end_time <- Sys.time()
   
@@ -150,17 +152,22 @@ write.csv(best_runs_data, paste0(path_models, "/best_hyperparameters.csv"), row.
 # save predictions to file
 write.csv(predictions, paste0(path_models, "/prediction_truth_fold.csv"), row.names=FALSE)
 
-
 ################### TESTING STUFF
 
 library(ggplot2)
 
-all_runs <- c()
-for (fold in 1:5) {
-  fold_runs <- ls_runs(runs_dir = paste0(path_tfruns, "/fold_", fold))
-  all_runs <- rbind(all_runs, fold_runs)
-}
-View(all_runs)
+# all_runs <- c()
+# for (fold in 1:5) {
+#   fold_runs <- ls_runs(runs_dir = paste0(path_tfruns, "/fold_", fold))
+#   all_runs <- rbind(all_runs, fold_runs)
+# }
+# View(all_runs)
+
+best_runs_1 <- read.csv("C:/Users/Zoe/Documents/understory_classification/4_Daten/models_1cm_lenet5/tls_rgb_geo/best_hyperparameters.csv")
+best_runs_2 <- read.csv("C:/Users/Zoe/Documents/understory_classification/4_Daten/models_2cm_lenet5/tls_rgb_geo/best_hyperparameters.csv")
+
+all_runs_1 <- read.csv("C:/Users/Zoe/Documents/understory_classification/4_Daten/models_1cm_lenet5/tls_rgb_geo/all_hyperparameters.csv")
+all_runs_2 <- read.csv("C:/Users/Zoe/Documents/understory_classification/4_Daten/models_2cm_lenet5/tls_rgb_geo/all_hyperparameters.csv")
 
 ggplot(all_runs) +
   geom_point(aes(x=metric_val_accuracy, y=metric_val_loss))
