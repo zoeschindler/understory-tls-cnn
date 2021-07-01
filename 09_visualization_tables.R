@@ -34,9 +34,10 @@ own_colors_named <- list(gray_green = "#96ceb4",
                          green = "#88d8b0",
                          turquoise = "#4abdac",
                          pink = "#ff8b94",
-                         orange = "#ff9a00")
-own_colors <- c(own_colors_named$yellow, own_colors_named$red, own_colors_named$green,
-                own_colors_named$blue, own_colors_named$orange, own_colors_named$turquoise)
+                         orange = "#ff9a00",
+                         bright_green = "#cbe885")
+own_colors <- c(own_colors_named$blue, own_colors_named$red, own_colors_named$yellow,
+                own_colors_named$bright_green, own_colors_named$green)
 
 ################################################################################
 # RAW POINT CLOUDS
