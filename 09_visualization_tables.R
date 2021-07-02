@@ -6,8 +6,10 @@
 
 # load packages
 library(ggplot2)
+library(ggpubr)
 library(grid)
 library(sf)
+library(scales)
 library(caret)
 library(raster)
 library(extrafont)
@@ -18,6 +20,7 @@ path_vegetation <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/veg
 path_rasters    <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters_1cm"  # input
 path_models     <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/models_2cm"  # input
 path_labels     <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/model_input_2cm/tls/label_lookup.csv"  # input
+path_plots      <- "C:/Users/Zoe/Documents/understory_classification/5_Analyse/Plots"  # output
 
 # set parameters
 crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +vunits=m +no_defs"
@@ -126,57 +129,104 @@ if (FALSE) {
 
 ################################################################################
 
-# boxplots for some rasters
+raster_stat_plot <- function(data, y_label, raster_type, abbreviate=TRUE, log=FALSE) {
+  if(abbreviate) {
+    label_vector <- c("B", "D", "F", "M", "S")
+  } else {
+    label_vector <- c('Blueberry','Deadwood','Forest Floor', "Moss", "Spruce")
+  }
+  if (!log) {
+    plot <- ggplot(data[data$type == raster_type,], aes(x = label, y = values)) +
+      stat_boxplot(geom = 'errorbar', width = 0.15) +
+      geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75) +
+      xlab("") + ylab("") +
+      # xlab("\nVegetation Label") +
+      ggtitle(y_label) +
+      # ylab(paste0(y_label, "\n")) +
+      scale_x_discrete(labels = label_vector) +
+      scale_fill_manual(values=own_colors) +
+      theme_light() +
+      theme(text = element_text(size=14, family="Calibri"), legend.position="none",
+            plot.title = element_text(hjust = 0.5))
+  } else {
+    data$values[data$type == raster_type & data$values == 0] <- NA
+    data <- na.omit(data)
+    plot <- ggplot(data[data$type == raster_type,], aes(x = label, y = values+1)) +
+      stat_boxplot(geom = 'errorbar', width = 0.15) +
+      geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75) +
+      xlab("") + ylab("") +
+      # xlab("\nVegetation Label") +
+      ggtitle(y_label) +
+      # ylab(paste0(y_label, "\n")) +
+      scale_x_discrete(labels = label_vector) +
+      scale_fill_manual(values=own_colors) +
+      theme_light() +
+      theme(text = element_text(size=14, family="Calibri"), legend.position="none",
+            plot.title = element_text(hjust = 0.5)) +
+      scale_y_continuous(trans = log10_trans(),
+                         breaks = trans_breaks("log10", function(x) 10^x),
+                         labels = trans_format("log10", math_format(10^.x)))
+  }
+  return(plot)
+}
 
+raster_legend <- function(data, pos) {
+  label_vector <- c('Blueberry','Deadwood','Forest Floor', "Moss", "Spruce")
+  plot <- ggplot(data[data$type == "nDSM",], aes(x = label, y = values)) +
+    geom_boxplot(aes(fill = label)) +
+    scale_fill_manual(values=own_colors, name = "Vegetation Label", labels = label_vector) +
+    theme_light() +
+    theme(text = element_text(size=16, family="Calibri"), legend.position=pos)
+  legend <- get_legend(plot)
+  return(legend)
+}
+
+################################################################################
+
+# read data
 raster_vals <- read.csv(paste0(path_rasters, "/raster_values_labels.csv"))
 raster_vals <- na.omit(raster_vals)
 
-# trying out some plots
-
-ggplot(raster_vals[raster_vals$type == "nDSM",], aes(x = label, y = values)) +
-  stat_boxplot(geom = 'errorbar', width = 0.15) +
-  geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75) +
-  xlab("\nVegetation Label") + ylab("Vegetation Height\n") +
-  scale_x_discrete(labels = c('Blueberry','Deadwood','Forest Floor', "Moss", "Spruce")) +
-  scale_fill_manual(values=own_colors) +
-  theme_light() +
-  theme(text = element_text(size=14, family="Calibri"), legend.position="none")
-
-ggplot(raster_vals[raster_vals$type == "reflectance_mean",], aes(x = label, y = values)) +
-  stat_boxplot(geom = 'errorbar', width = 0.15) +
-  geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75) +
-  xlab("\nVegetation Label") + ylab("Reflectance, mean\n") +
-  scale_x_discrete(labels = c('Blueberry','Deadwood','Forest Floor', "Moss", "Spruce")) +
-  scale_fill_manual(values=own_colors) +
-  theme_light() +
-  theme(text = element_text(size=14, family="Calibri"), legend.position="none")
-
-ggplot(raster_vals[raster_vals$type == "linearity_max",], aes(x = label, y = values)) +
-  stat_boxplot(geom = 'errorbar', width = 0.15) +
-  geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75) +
-  xlab("\nVegetation Label") + ylab("Linearity, max\n") +
-  scale_x_discrete(labels = c('Blueberry','Deadwood','Forest Floor', "Moss", "Spruce")) +
-  scale_fill_manual(values=own_colors) +
-  theme_light() +
-  theme(text = element_text(size=14, family="Calibri"), legend.position="none")
-
-ggplot(raster_vals[raster_vals$type == "planarity_mean",], aes(x = label, y = values)) +
-  stat_boxplot(geom = 'errorbar', width = 0.15) +
-  geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75) +
-  xlab("\nVegetation Label") + ylab("Planarity, mean\n") +
-  scale_x_discrete(labels = c('Blueberry','Deadwood','Forest Floor', "Moss", "Spruce")) +
-  scale_fill_manual(values=own_colors) +
-  theme_light() +
-  theme(text = element_text(size=14, family="Calibri"), legend.position="none")
-
-# TODO: arrange in a grid
-# http://www.sthda.com/english/articles/32-r-graphics-essentials/126-combine-multiple-ggplots-in-one-graph/
+# make legend
+plot_legend_block <- raster_legend(raster_vals, "right")
+plot_legend_line <- raster_legend(raster_vals, "bottom")
 
 # all rgb values (R, G, B)
+cairo_pdf(file = paste0(path_plots, "/rgb_raster_stats.pdf"), family = "Calibri", width = 8.27, height = 2.93)
+plot_red   <- raster_stat_plot(raster_vals, "Red", "R")
+plot_green <- raster_stat_plot(raster_vals, "Green", "G")
+plot_blue  <- raster_stat_plot(raster_vals, "Blue", "B")
+ggarrange(plot_red, plot_green, plot_blue,
+          ncol = 3, nrow = 1,
+          legend.grob = plot_legend_line, legend = "bottom")
+dev.off()
 
 # all geometry values (anisotropy_max, curvature_max, linearity_max, linearity_sd, planarity_mean, planarity_sd)
+cairo_pdf(file = paste0(path_plots, "/geo_raster_stats.pdf"), family = "Calibri", width = 8.27, height = 5.83)
+plot_aniso_max <- raster_stat_plot(raster_vals, "Anisotropy, max", "anisotropy_max")
+plot_curv_max  <- raster_stat_plot(raster_vals, "Curvature, max", "curvature_max")
+plot_linea_max <- raster_stat_plot(raster_vals, "Linearity, max", "linearity_max")
+plot_linea_sd  <- raster_stat_plot(raster_vals, "Linearity, sd", "linearity_sd")
+plot_plan_mean <- raster_stat_plot(raster_vals, "Planarity, mean", "planarity_mean")
+plot_plan_sd   <- raster_stat_plot(raster_vals, "Planarity, sd", "planarity_sd")
+ggarrange(plot_aniso_max, plot_curv_max, plot_linea_max,
+          plot_linea_sd, plot_plan_mean, plot_plan_sd, 
+          ncol = 3, nrow = 2,
+          legend.grob = plot_legend_line, legend = "bottom")
+dev.off()
 
 # all tls values (nDSM, point_density, reflectance_mean, reflectance_sd)
+# point density without 0s, because logarithmic scale hates that
+cairo_pdf(file = paste0(path_plots, "/tls_raster_stats.pdf"), family = "Calibri", width = 8.27, height = 5.83)
+plot_dens     <- raster_stat_plot(raster_vals, "Point Density", "point_density", log = TRUE)
+plot_nDSM     <- raster_stat_plot(raster_vals, "nDSM Height", "nDSM")
+plot_ref_mean <- raster_stat_plot(raster_vals, "Reflectance, mean", "reflectance_mean")
+plot_ref_sd   <- raster_stat_plot(raster_vals, "Reflectance, sd", "reflectance_sd")
+ggarrange(plot_dens, plot_nDSM,
+          plot_ref_mean, plot_ref_sd,
+          ncol = 2, nrow = 2,
+          legend.grob = plot_legend_line, legend = "bottom")
+dev.off()
 
 ################################################################################
 
