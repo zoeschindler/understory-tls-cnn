@@ -30,7 +30,7 @@ check_create_dir(path_tfruns)
 check_create_dir(path_models)
 
 # set data input parameters
-n_folds <- 5  # number of folds for cross-validation
+n_folds <- 10  # number of folds for cross-validation
 n_classes <- 5  # number of understory classes
 width_length <- tile_size / resolution  # input image dimensions (pixels)
 if (input_type == "tls") {
@@ -63,7 +63,6 @@ predictions     <- c()
 
 # loop through all folds
 for (fold in 1:n_folds) {
-  
   # load & prepare input data
   rdata_paths <- list.files(path_clips, pattern="[.]rds", full.names=TRUE)
   balanced <- create_dataset(rdata_paths, fold, width_length, n_bands)
@@ -71,14 +70,14 @@ for (fold in 1:n_folds) {
   # try hyperparameter combinations
   runs <- tuning_run(path_experiment,
                      flags = list(learning_rate = c(1e-3, 1e-4, 1e-5),
-                                  decay_multi = c(1/10, 1/100),
-                                  l2_regularizer = c(0, 0.0001, 0.001),
-                                  dropout = c(0.3, 0.4, 0.5),
-                                  epochs = c(200),
-                                  batch_normalization = c(FALSE),
-                                  filter_factor = c(0.5, 0.75, 1),
-                                  band_selector = c(0.5, 0.75, 1)),
-                     sample = 0.1, # set higher later
+                                  #decay_multi = c(0, 1/10, 1/100),
+                                  l2_regularizer = c(0, 0.0001, 0.001, 0.01),
+                                  #dropout = c(0.3, 0.5),
+                                  epochs = c(50, 100, 150, 200)),#,
+                                  #batch_normalization = c(FALSE),
+                                  #filter_factor = c(1),
+                                  #band_selector = c(0.75)),
+                     #sample = 0.66, # set higher later
                      confirm = FALSE,
                      runs_dir = paste0(path_tfruns, "/fold_", fold))
   
@@ -88,20 +87,20 @@ for (fold in 1:n_folds) {
   best_runs <- rbind(best_runs, best_run)
   
   # set up "best network"
-  model <- lenet5(
+  model <- get_lenet5(
     width_length = width_length,
     n_bands = n_bands,
-    n_band_selector = floor(n_bands*best_run$flag_band_selector),
+    #n_band_selector = ceiling(n_bands*best_run$flag_band_selector),
     n_classes = n_classes,
-    filter_factor = best_run$flag_filter_factor,
-    l2_regularizer = best_run$flag_l2_regularizer,
-    dropout = best_run$flag_dropout,
-    batch_normalization = best_run$flag_batch_normalization)
+    #filter_factor = best_run$flag_filter_factor,
+    l2_regularizer = best_run$flag_l2_regularizer)#,
+    #dropout = best_run$flag_dropout,
+    #batch_normalization = best_run$flag_batch_normalization)
   
   # compile "best network"
   model %>% compile(
     optimizer = optimizer_rmsprop(lr = best_run$flag_learning_rate,
-                                  decay = best_run$flag_learning_rate * best_run$flag_decay_multi),
+                                  decay = best_run$flag_learning_rate / best_run$flag_epochs),
     loss = "categorical_crossentropy",
     metrics = c("accuracy")
   )
@@ -111,7 +110,7 @@ for (fold in 1:n_folds) {
   history <- model %>% fit_generator(
     balanced$data_train_vali,
     steps_per_epoch = balanced$steps_train_vali,
-    epochs = best_run$epochs_completed,
+    epochs = best_run$flag_epochs,
   )
   end_time <- Sys.time()
   
@@ -136,7 +135,7 @@ for (fold in 1:n_folds) {
   predictions <- rbind(predictions, pred_df)
   
   # save assessment values & hyperparameter configuration & time for training
-  time_training[fold] <- as.numeric(end_time - start_time)
+  time_training[fold] <- as.numeric(difftime(end_time, start_time, units = "sec"))
   test_accuracies[fold] <- results["accuracy"]
 }
 
@@ -152,22 +151,18 @@ write.csv(best_runs_data, paste0(path_models, "/best_hyperparameters.csv"), row.
 # save predictions to file
 write.csv(predictions, paste0(path_models, "/prediction_truth_fold.csv"), row.names=FALSE)
 
+# TODO: try "pure" implementation of both websites
+# TODO: try adam / SGD optimizer
+# TODO: try different initialization (e.g. he_normal)
+# TODO: try more / less augmented data
+# TODO: try doubling batch size (+ maybe then batch normalization)
+
 ################### TESTING STUFF
 
 library(ggplot2)
 
-# all_runs <- c()
-# for (fold in 1:5) {
-#   fold_runs <- ls_runs(runs_dir = paste0(path_tfruns, "/fold_", fold))
-#   all_runs <- rbind(all_runs, fold_runs)
-# }
-# View(all_runs)
-
-best_runs_1 <- read.csv("C:/Users/Zoe/Documents/understory_classification/4_Daten/models_1cm_lenet5/tls_rgb_geo/best_hyperparameters.csv")
-best_runs_2 <- read.csv("C:/Users/Zoe/Documents/understory_classification/4_Daten/models_2cm_lenet5/tls_rgb_geo/best_hyperparameters.csv")
-
-all_runs_1 <- read.csv("C:/Users/Zoe/Documents/understory_classification/4_Daten/models_1cm_lenet5/tls_rgb_geo/all_hyperparameters.csv")
-all_runs_2 <- read.csv("C:/Users/Zoe/Documents/understory_classification/4_Daten/models_2cm_lenet5/tls_rgb_geo/all_hyperparameters.csv")
+best_runs <- read.csv("C:/Users/Zoe/Documents/understory_classification/4_Daten/models_2cm/tls_rgb_geo/best_hyperparameters.csv")
+all_runs <- read.csv("C:/Users/Zoe/Documents/understory_classification/4_Daten/models_2cm/tls_rgb_geo/all_hyperparameters.csv")
 
 ggplot(all_runs) +
   geom_point(aes(x=metric_val_accuracy, y=metric_val_loss))

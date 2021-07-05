@@ -9,6 +9,7 @@ library(ggplot2)
 library(ggpubr)
 library(grid)
 library(sf)
+library(dplyr)
 library(scales)
 library(caret)
 library(raster)
@@ -16,11 +17,11 @@ library(extrafont)
 loadfonts(device="pdf", quiet=TRUE)
 
 # set paths
-path_vegetation <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/vegetation/Export_ODK_clean_checked_filtered_no_overlap.kml"  # input
-path_rasters    <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/rasters_1cm"  # input
-path_models     <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/models_2cm"  # input
-path_labels     <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/model_input_2cm/tls/label_lookup.csv"  # input
-path_plots      <- "C:/Users/Zoe/Documents/understory_classification/5_Analyse/Plots"  # output
+path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_checked_filtered_no_overlap.kml"  # input
+path_rasters    <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters_1cm"  # input
+path_models     <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models_2cm_lenet5_10cv"  # input
+path_labels     <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/model_input_2cm/tls/label_lookup.csv"  # input
+path_plots      <- "H:/Daten/Studium/2_Master/4_Semester/5_Analyse/Plots"  # output
 
 # set parameters
 crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +vunits=m +no_defs"
@@ -286,18 +287,44 @@ color_scale <- c("blueberry" = own_colors_named$blue,
                  "moss" = own_colors_named$blue,
                  "spruce" = own_colors_named$blue)
 
-# scale values for color stuff
+# # scale values for color stuff
+# conf_data <- conf_data %>%
+#   group_by(Reference) %>%
+#   mutate(Freq_scaled = Freq/max(Freq)) %>%
+#   ungroup() %>%
+#   arrange(Reference)
+
+# percentage of true values of each label
 conf_data <- conf_data %>%
   group_by(Reference) %>%
-  mutate(Freq_scaled = (Freq-min(Freq))/(max(Freq)-min(Freq))) %>%
+  mutate(Freq_prob=format(round(Freq/sum(Freq)*100,2), nsmall=2)) %>%
   ungroup() %>%
   arrange(Reference)
 
-# plot confusion matrix
-ggplot(data = conf_data, aes(x=Reference, y=Prediction, fill=Reference, alpha=Freq_scaled)) +
+# # plot confusion matrix, no percentage
+# ggplot(data = conf_data, aes(x=Reference, y=Prediction, fill=Reference, alpha=Freq_scaled)) +
+#   geom_tile(fill = "white", alpha = 1) +
+#   geom_tile(color = "gray50") + coord_equal() +
+#   geom_text(aes(label = Freq), color = 'gray20', size = 4, alpha=1) +
+#   xlab(paste0("\nReference (n = ", sum(conf_data$Freq), ")")) + ylab("Prediction\n") +
+#   scale_x_discrete(labels = c(paste0("Blueberry\n(n = ", sum(conf_data$Freq[conf_data$Reference == "blueberry"]), ")"),
+#                               paste0("Deadwood\n(n = ", sum(conf_data$Freq[conf_data$Reference == "dead_wood"]), ")"),
+#                               paste0("Forest Floor\n(n = ", sum(conf_data$Freq[conf_data$Reference == "forest_floor"]), ")"),
+#                               paste0("Moss\n(n = ", sum(conf_data$Freq[conf_data$Reference == "moss"]), ")"),
+#                               paste0("Spruce\n(n = ", sum(conf_data$Freq[conf_data$Reference == "spruce"]), ")"))) +
+#   scale_y_discrete(labels = rev(c("Blueberry","Deadwood","Forest Floor", "Moss", "Spruce"))) +
+#   scale_fill_manual(values = color_scale) +
+#   theme_light() +
+#   theme(text = element_text(size=14), legend.position="none") +
+#   ggtitle(paste0("Confusion Matrix, LeNet5, 2cm, all folds\nAccuracy ",
+#                  round(conf$overall["Accuracy"]*100,2), "%"))
+
+# plot confusion matrix, with percentage
+ggplot(data = conf_data, aes(x=Reference, y=Prediction, fill=Reference, alpha=as.numeric(Freq_prob))) +
   geom_tile(fill = "white", alpha = 1) +
   geom_tile(color = "gray50") + coord_equal() +
-  geom_text(aes(label = Freq), color = 'gray20', size = 4, alpha=1) +
+  geom_text(aes(label = paste0(Freq)), color = 'gray20', size = 4, alpha=1) +
+  geom_text(aes(label = paste0("\n\n ", gsub(" ", "", Freq_prob), "%")), color = 'gray20', size = 3, alpha=1) +
   xlab(paste0("\nReference (n = ", sum(conf_data$Freq), ")")) + ylab("Prediction\n") +
   scale_x_discrete(labels = c(paste0("Blueberry\n(n = ", sum(conf_data$Freq[conf_data$Reference == "blueberry"]), ")"),
                               paste0("Deadwood\n(n = ", sum(conf_data$Freq[conf_data$Reference == "dead_wood"]), ")"),

@@ -174,7 +174,7 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
   ###
   if(balance_classes) {
     # duplicate images depending on label frequency
-    duplicated_train_vali <- balance_by_duplicates(label_train_vali, img_train_vali, max_per_image, max_length)
+    duplicated_train_vali <- balance_by_duplicates(label_train_vali, img_train_vali, max_per_image, max_length+100)
     label_train_vali <- duplicated_train_vali$label
     img_train_vali <- duplicated_train_vali$img
     ###
@@ -242,39 +242,85 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
 # https://www.kaggle.com/curiousprogrammer/lenet-5-cnn-with-keras-99-48 (based on this code)
 ################################################################################
 
-get_lenet5 <- function(width_length, n_bands, n_band_selector, n_classes, filter_factor=1,
-                       l2_regularizer=0.001, dropout=0.5, batch_normalization=FALSE) {
-  model <- keras_model_sequential()
-  # band selector
-  model %>%
+# get_lenet5 <- function(width_length, n_bands, n_band_selector, n_classes, filter_factor=1,
+#                        l2_regularizer=0.001, dropout=0.5, batch_normalization=FALSE) {
+#   model <- keras_model_sequential()
+#   # band selector
+#   model %>%
+#     layer_conv_2d(input_shape = c(width_length, width_length, n_bands),
+#                   filters = n_band_selector, kernel_size = c(1,1),
+#                   strides = c(1,1), padding="same")
+#   # main model
+#   model %>%
+#     layer_conv_2d(filters = 32 * filter_factor, kernel_size = c(5,5),
+#                   activation = "relu", padding="same",
+#                   kernel_regularizer = regularizer_l2(l2_regularizer))
+#   if(batch_normalization) {
+#     model %>% layer_batch_normalization()
+#   }
+#   model %>%
+#     layer_max_pooling_2d() %>%
+#     layer_conv_2d(filters = 48 * filter_factor, kernel_size = c(5,5), activation = "relu",
+#                   padding="same", kernel_regularizer = regularizer_l2(l2_regularizer))
+#   if(batch_normalization) {
+#     model %>% layer_batch_normalization()
+#   }
+#   model %>%
+#     layer_max_pooling_2d() %>%
+#     layer_flatten() %>%
+#     layer_dense(units = 256 * filter_factor, activation = "relu") %>%
+#     layer_dropout(0.3) %>%
+#     layer_dense(units = 84 * filter_factor, activation = "relu") %>%
+#     layer_dropout(0.5) %>%
+#     layer_dense(units = n_classes, activation = "softmax")
+#   return(model)
+# }
+
+get_lenet5 <- function(width_length, n_bands, n_classes, filter_factor=1, l2_regularizer=0.001) {
+  model <- keras_model_sequential() %>%
     layer_conv_2d(input_shape = c(width_length, width_length, n_bands),
-                  filters = n_band_selector, kernel_size = c(1,1),
-                  strides = c(1,1), padding="same")
-  # main model
-  model %>%
-    layer_conv_2d(filters = 32 * filter_factor, kernel_size = c(5,5),
-                  activation = "relu", padding="same",
-                  kernel_regularizer = regularizer_l2(l2_regularizer))
-  if(batch_normalization) {
-    model %>% layer_batch_normalization()
-  }
-  model %>%
+                  filters = 32 * filter_factor, kernel_size = c(5,5), padding="same",
+                  kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+    layer_activation_leaky_relu() %>%
     layer_max_pooling_2d() %>%
-    layer_conv_2d(filters = 48 * filter_factor, kernel_size = c(5,5), activation = "relu",
-                  padding="same", kernel_regularizer = regularizer_l2(l2_regularizer))
-  if(batch_normalization) {
-    model %>% layer_batch_normalization()
-  }
-  model %>%
+    layer_conv_2d(filters = 48 * filter_factor, kernel_size = c(5,5), padding="same",
+                  kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+    layer_activation_leaky_relu() %>%
     layer_max_pooling_2d() %>%
     layer_flatten() %>%
-    layer_dense(units = 256 * filter_factor, activation = "relu") %>%
-    layer_dropout(dropout) %>%
-    layer_dense(units = 84 * filter_factor, activation = "relu") %>%
-    layer_dropout(dropout) %>%
+    layer_dense(units = 256 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+    layer_activation_leaky_relu() %>%
+    layer_dropout(0.3) %>%
+    layer_dense(units = 84 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+    layer_activation_leaky_relu() %>%
+    layer_dropout(0.5) %>%
     layer_dense(units = n_classes, activation = "softmax")
   return(model)
 }
+
+# get_lenet5 <- function(width_length, n_bands, n_classes, filter_factor=1, l2_regularizer=0.001) {
+#   model <- keras_model_sequential() %>%
+#     layer_conv_2d(input_shape = c(width_length, width_length, n_bands),
+#                   filters = 7, kernel_size = c(1,1), padding="same", strides=c(1,1)) %>%
+#     layer_activation_leaky_relu() %>%
+#     layer_conv_2d(filters = 32 * filter_factor, kernel_size = c(5,5), padding="same",
+#                   kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+#     layer_activation_leaky_relu() %>%
+#     layer_max_pooling_2d() %>%
+#     layer_conv_2d(filters = 48 * filter_factor, kernel_size = c(5,5), padding="same",
+#                   kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+#     layer_activation_leaky_relu() %>%
+#     layer_max_pooling_2d() %>%
+#     layer_flatten() %>%
+#     layer_dense(units = 256 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+#     layer_activation_leaky_relu() %>%
+#     layer_dropout(0.3) %>%
+#     layer_dense(units = 84 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+#     layer_activation_leaky_relu() %>%
+#     layer_dropout(0.5) %>%
+#     layer_dense(units = n_classes, activation = "softmax")
+#   return(model)
+# }
 
 ################################################################################
 # VGG-16
