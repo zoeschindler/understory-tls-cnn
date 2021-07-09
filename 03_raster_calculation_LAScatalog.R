@@ -102,7 +102,7 @@ plan(sequential)
 plan(multisession, workers=11L)
 
 # get all area IDs
-area_IDs <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern="[.]las")
+area_IDs <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=".las")
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 for (area_ID in area_IDs) {
@@ -119,8 +119,8 @@ for (area_ID in area_IDs) {
   opt_chunk_size(ctg_retiled) <- chunk_size
 
   # execute
-  ctg_normalized <- dtm_ctg.LAScatalog(ctg_retiled, paste0(path_rasters, "/DTM"),
-                                       paste0("area_", area_ID))
+  dtm_ctg.LAScatalog(ctg_retiled, paste0(path_rasters, "/DTM"),
+                     paste0("area_", area_ID))
   warnings()
 }
 
@@ -135,7 +135,7 @@ plan(sequential)
 plan(multisession, workers=5L)
 
 # get all area IDs
-area_IDs <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern="[.]las")
+area_IDs <- list.files(paste0(dirname(path_points), "/01_tiled"), pattern=".las")
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 for (area_ID in area_IDs) {
@@ -175,7 +175,7 @@ plan(sequential)
 plan(multisession, workers=7L)
 
 # get all area IDs
-area_IDs <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern="[.]las")
+area_IDs <- list.files(paste0(dirname(path_points), "/02_normalized"), pattern=".las")
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 ################################################################################
@@ -254,7 +254,7 @@ plan(multisession, workers=7L)
 ################################################################################
 
 # get all area IDs
-area_IDs <- list.files(paste0(dirname(path_points), "/03_understory"), pattern="[.]las")
+area_IDs <- list.files(paste0(dirname(path_points), "/03_understory"), pattern=".las")
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 for (area_ID in area_IDs) {
@@ -287,7 +287,7 @@ for (area_ID in area_IDs) {
 ################################################################################
 
 # get all area IDs
-area_IDs <- list.files(paste0(dirname(path_points), "/04_understory_stems"), pattern="[.]las")
+area_IDs <- list.files(paste0(dirname(path_points), "/04_understory_stems"), pattern=".las")
 area_IDs <- as.numeric(unique(lapply(area_IDs, function(x) strsplit(x, split="_")[[1]][2])))
 
 for (area_ID in area_IDs) {

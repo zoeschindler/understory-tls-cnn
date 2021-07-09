@@ -25,7 +25,7 @@ clip_these <- c("ortho", "anisotropy_max", "curvature_max", "linearity_max",
                 "point_density", "reflectance_mean", "reflectance_sd")
 
 # set parameter
-tile_size <- 0.5
+tile_size <- 0.5  # in meters
 crs_points_raster <- as.character(crs(readTLSLAScatalog(path_points_03)))
 
 ################################################################################
@@ -45,7 +45,7 @@ check_create_dir <- function(path) {
 rescale_values <- function(folder) {
   # gets minimum & maximum values for rescaling
   # get all raster
-  raster_list <- list.files(folder, pattern="[.]tif", full.names=TRUE, recursive=TRUE)
+  raster_list <- list.files(folder, pattern=".tif", full.names=TRUE, recursive=TRUE)
   raster_list <- raster_list[!grepl("temp", raster_list)]
   # set up empty lookup list
   lookup_list <- list()
@@ -95,7 +95,7 @@ rescale_values <- function(folder) {
 #   # empty list for storing "bad" points
 #   remove_plots <- c()
 #   # get all rasters within nDSM_dir
-#   nDSM_list <- list.files(nDSM_unscaled_dir, pattern="[.]tif", recursive=TRUE)
+#   nDSM_list <- list.files(nDSM_unscaled_dir, pattern=".tif", recursive=TRUE)
 #   # calculate edge length (divisible by two)
 #   edge <- ((tile_size*100)%/%2)/100
 #   # loop through nDSMs

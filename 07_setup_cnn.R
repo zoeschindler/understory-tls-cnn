@@ -126,7 +126,8 @@ tif_to_rds <- function(clip_dir, pixels, bands, folds=5, seed=123) {
 # DATA PREPARATION & AUGMENTATION
 ################################################################################
 
-create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_image=20, max_length=400, balance_classes=TRUE) {  # vorher 5 & 300
+create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_image=20,
+                           max_length=400, balance_classes=TRUE, batch_size=32) {
   # create dataset for CNN
   # load test data
   raw_test <- readRDS(rdata_list[holdout_fold])
@@ -213,12 +214,14 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
   flow_train_vali <- flow_images_from_data(
     x = img_train_vali,
     y = to_categorical(label_train_vali)[,2:(label_classes+1)],
-    generator = do_augmentation)
+    generator = do_augmentation,
+    batch_size=batch_size)
   # generate batches, for training data
   flow_train <- flow_images_from_data(
     x = img_train,
     y = to_categorical(label_train)[,2:(label_classes+1)],
-    generator = do_augmentation)
+    generator = do_augmentation,
+    batch_size=batch_size)
   # generate batches, for validation data
   flow_vali <- flow_images_from_data(
     x = img_vali,
@@ -232,8 +235,8 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
               data_vali = flow_vali,
               length_test = length(label_test),
               length_vali = length(label_vali),
-              steps_train_vali = round(length(label_train_vali)/32),
-              steps_train = round(length(label_train)/32)))
+              steps_train_vali = round(length(label_train_vali)/batch_size),
+              steps_train = round(length(label_train)/batch_size)))
 }
 
 ################################################################################
@@ -276,25 +279,34 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
 #   return(model)
 # }
 
-get_lenet5 <- function(width_length, n_bands, n_classes, filter_factor=1, l2_regularizer=0.001) {
+get_lenet5 <- function(width_length, n_bands, n_classes, filter_factor=1, l2_regularizer=0.001, seed=NULL) {
   model <- keras_model_sequential() %>%
     layer_conv_2d(input_shape = c(width_length, width_length, n_bands),
                   filters = 32 * filter_factor, kernel_size = c(5,5), padding="same",
-                  kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+                  kernel_regularizer=regularizer_l2(l2_regularizer),
+                  kernel_initializer="he_normal") %>%
     layer_activation_leaky_relu() %>%
+    layer_batch_normalization() %>%
     layer_max_pooling_2d() %>%
     layer_conv_2d(filters = 48 * filter_factor, kernel_size = c(5,5), padding="same",
-                  kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+                  kernel_regularizer=regularizer_l2(l2_regularizer),
+                  kernel_initializer="he_normal") %>%
     layer_activation_leaky_relu() %>%
+    layer_batch_normalization() %>%
     layer_max_pooling_2d() %>%
     layer_flatten() %>%
-    layer_dense(units = 256 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+    layer_dense(units = 256 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer),
+                kernel_initializer="he_normal") %>%
     layer_activation_leaky_relu() %>%
+    layer_batch_normalization() %>%
     layer_dropout(0.3) %>%
-    layer_dense(units = 84 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
+    layer_dense(units = 84 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer),
+                kernel_initializer="he_normal") %>%
     layer_activation_leaky_relu() %>%
+    layer_batch_normalization() %>%
     layer_dropout(0.5) %>%
-    layer_dense(units = n_classes, activation = "softmax")
+    layer_dense(units = n_classes, activation = "softmax",
+                kernel_initializer="he_normal")
   return(model)
 }
 

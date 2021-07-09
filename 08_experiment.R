@@ -46,15 +46,11 @@ model %>% compile(
 # TRAIN
 ################################################################################
 
-# set callbacks
-#callbacks_list <- list(callback_early_stopping(monitor = "val_loss", mode = "min", patience = 10))
-
 # fit
-history <- model %>% fit_generator(
+history <- model %>% fit(
   balanced$data_train,
   steps_per_epoch = balanced$steps_train,
   epochs = FLAGS$epochs,
-  #callbacks = callbacks_list,
   validation_data = balanced$data_vali,
   validation_steps = balanced$length_vali
 )
@@ -63,6 +59,6 @@ history <- model %>% fit_generator(
 # EVALUATE
 ################################################################################
 
-results <- model %>% evaluate_generator(balanced$data_test, steps=balanced$length_test)
+results <- model %>% evaluate(balanced$data_test, steps=balanced$length_test)
 
 ################################################################################

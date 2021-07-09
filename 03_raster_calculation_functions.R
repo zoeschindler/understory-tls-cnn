@@ -200,6 +200,7 @@ dtm_ctg.LAScatalog <- function(las, output_dir, output_name) {
   output  <- catalog_apply(las, dtm_ctg.LAScluster, .options = options)
   # save merged output
   writeRaster(output, paste0(output_dir, "/DTM_", output_name, ".tif"), overwrite = TRUE)
+  return(output)
 }
 
 ################################################################################

@@ -59,7 +59,7 @@ check_create_dir <- function(path) {
 get_list_full_plots <- function(clip_dir, raster_amount) {
   # returns list of plots for which all types of rasters exist
   # get all files in clip folder
-  clip_list <- list.files(clip_dir, pattern="[.]tif", recursive=TRUE, full.names=TRUE)
+  clip_list <- list.files(clip_dir, pattern=".tif", recursive=TRUE, full.names=TRUE)
   # extract all unique plot numbers
   plot_IDs <- c()
   for (clip_path in clip_list) {
@@ -87,7 +87,7 @@ stack_save_clips <- function(clip_dir, plot_path, output_dir, selection_rasters,
   # stacks all rasters for each clip & saves it in a folder based on the label
   check_create_dir(output_dir)
   # get all clip paths of the selected raster types
-  clip_list <- list.files(clip_dir, pattern="[.]tif", recursive=TRUE)
+  clip_list <- list.files(clip_dir, pattern=".tif", recursive=TRUE)
   contained <- c()
   for (clip_path in clip_list)  {
     contained <- c(contained, strsplit(clip_path, "/")[[1]][1] %in% selection_rasters)
