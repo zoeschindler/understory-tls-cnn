@@ -194,21 +194,24 @@ stack_save_clips <- function(clip_dir, plot_path, values_path, output_dir, selec
     plot_names <- unlist(lapply(strsplit(basename(plot_paths), "_area"), head, n=1))
     plot_rasters <- list()
     for (idx in 1:length(plot_paths)) {
-      raster_band <- stack(paste0(clip_dir, "/", plot_paths[idx]))
+      raster_bands <- stack(paste0(clip_dir, "/", plot_paths[idx]))
       # rescale values
-      if (normalize | standardize) {
-        if (normalize) {
-          min_val <- lookup_table[[paste0(plot_names[idx], "_min")]]
-          max_val <- lookup_table[[paste0(plot_names[idx], "_max")]]
-          raster_band <- (raster_band-min_val)/(max_val-min_val)
-        }
-        if (standardize) {
-          mean_val <- lookup_table[[paste0(plot_names[idx], "_mean")]]
-          sd_val   <- lookup_table[[paste0(plot_names[idx], "_sd")]]
-          raster_band <- scale(raster_band, center=mean_val, scale=sd_val)
+      bands <- if(plot_names[idx]!="ortho") c(plot_names[idx]) else c("R", "G", "B")
+      for (i in 1:length(bands)) {
+        if (normalize | standardize) {
+          if (normalize) {
+            min_val <- lookup_table[[paste0(bands[i], "_min")]]
+            max_val <- lookup_table[[paste0(bands[i], "_max")]]
+            raster_bands[[i]] <- (raster_bands[[i]]-min_val)/(max_val-min_val)
+          }
+          if (standardize) {
+            mean_val <- lookup_table[[paste0(bands[i], "_mean")]]
+            sd_val   <- lookup_table[[paste0(bands[i], "_sd")]]
+            raster_bands[[i]] <- scale(raster_bands[[i]], center=mean_val, scale=sd_val)
+          }
         }
       }
-      plot_rasters[[idx]] <- raster_band
+      plot_rasters[[idx]] <- raster_bands
     }
     plot_stack <- stack(plot_rasters)
     # determine label & save in according folder
