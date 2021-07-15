@@ -11,7 +11,8 @@ library(raster)
 # set paths
 path_clips  <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/clips"  # input
 path_output <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/models/input"  # output
-path_plot   <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/vegetation/Export_ODK_clean_checked.kml" # input
+path_plot   <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/vegetation/Export_ODK_clean_checked_filtered_no_overlap.kml" # input
+path_values <- paste0(path_clips, "/raster_values_labels_unscaled.csv")  # output
 
 # set parameters
 crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +vunits=m +no_defs"
@@ -80,12 +81,96 @@ get_list_full_plots <- function(clip_dir, raster_amount) {
 }
 
 ################################################################################
+
+clip_value_csv <- function(plot_path, clip_dir, output_path) {
+  # create csv with all unscaled raster clip values
+  # empty vector for raster values
+  values <- c()
+  # load plots
+  vegetation <- st_read(plot_path)
+  labels <- unique(vegetation$Name)
+  labels <- labels[!(labels %in% c("rock", "grass"))]
+  # get all raster paths
+  clip_paths <- list.files(clip_dir, pattern="[.]tif", recursive = TRUE, full.names = TRUE)
+  clip_paths <- clip_paths[!grepl("DTM", clip_paths)]
+  # make list with plot_ID & vegetation_ID and labels
+  label_ID_lookup <- list()
+  for (label in labels) {
+    label_subset <- vegetation$Description[vegetation$Name == label]
+    plot_IDs <- as.numeric(lapply(strsplit(label_subset, "veg_ID: "), tail, n=1))
+    label_ID_lookup[[label]] <- plot_IDs
+  }
+  # loop through clip types
+  clip_types <- unique(sapply(strsplit(basename(clip_paths), "_area"), "[[", 1))
+  for (type in clip_types) {
+    print(paste0("type: ", type))
+    clip_type_paths <- clip_paths[grepl(type, clip_paths)]
+    for (label in labels) {
+      print(paste0("label: ", label))
+      label_IDs <- label_ID_lookup[[label]]
+      label_clip_type_paths <- clip_type_paths[grepl(paste(paste0("_", label_IDs, "[.]tif"), collapse="|"), clip_type_paths)]
+      # loop through clips
+      for (path in label_clip_type_paths) {
+        raster <- stack(path)
+        clip_label_vals <- values(raster)
+        if (type != "ortho") {
+          values <- rbind(values, data.frame("type"=type, "label"=label, "values" = as.numeric(clip_label_vals)))
+        } else {
+          values <- rbind(values, data.frame("type"="R", "label"=label, "values" = as.numeric(clip_label_vals[,1])))
+          values <- rbind(values, data.frame("type"="G", "label"=label, "values" = as.numeric(clip_label_vals[,2])))
+          values <- rbind(values, data.frame("type"="B", "label"=label, "values" = as.numeric(clip_label_vals[,3])))
+        }
+      }
+    }
+  }
+  # save values
+  write.csv(values, output_path, row.names=F)
+  return(values)
+}
+
+rescale_values <- function(values_path) {
+  values <- read.csv(values_path)
+  lookup <- list()
+  types <- unique(values$type)
+  for (type in types) {
+    lookup[[paste0(type, "_min")]]  <- min(values$values[values$type==type], na.rm=TRUE)
+    lookup[[paste0(type, "_max")]]  <- max(values$values[values$type==type], na.rm=TRUE)
+    lookup[[paste0(type, "_mean")]] <- mean(values$values[values$type==type], na.rm=TRUE)
+    lookup[[paste0(type, "_sd")]]   <- sd(values$values[values$type==type], na.rm=TRUE)
+  }
+  return(lookup)
+}
+
+################################################################################
+
+rescale_values <- function(values_path) {
+  # creates lookup table for normalization / standardization
+  values <- read.csv(values_path)
+  lookup <- list()
+  types <- unique(values$type)
+  for (type in types) {
+    lookup[[paste0(type, "_min")]]  <- min(values$values[values$type==type], na.rm=TRUE)
+    lookup[[paste0(type, "_max")]]  <- max(values$values[values$type==type], na.rm=TRUE)
+    lookup[[paste0(type, "_mean")]] <- mean(values$values[values$type==type], na.rm=TRUE)
+    lookup[[paste0(type, "_sd")]]   <- sd(values$values[values$type==type], na.rm=TRUE)
+  }
+  return(lookup)
+}
+
+################################################################################
 # STACK & SAVE & SORT CLIPS
 ################################################################################
 
-stack_save_clips <- function(clip_dir, plot_path, output_dir, selection_rasters, selection_IDs) {
+stack_save_clips <- function(clip_dir, plot_path, values_path, output_dir, selection_rasters, selection_IDs, normalize=TRUE, standardize=FALSE) {
   # stacks all rasters for each clip & saves it in a folder based on the label
   check_create_dir(output_dir)
+  # load lookup table
+  if (normalize & standardize) {
+    stop("either normalize OR standardize")
+  }
+  if(normalize | standardize) {
+    lookup_table <- rescale_values(values_path)
+  }
   # get all clip paths of the selected raster types
   clip_list <- list.files(clip_dir, pattern="[.]tif", recursive=TRUE)
   contained <- c()
@@ -94,10 +179,7 @@ stack_save_clips <- function(clip_dir, plot_path, output_dir, selection_rasters,
   }
   clip_list <- clip_list[contained]
   # load vegetation plots & create one subfolder for each label
-  plots <- st_transform(st_read(plot_path), crs_raster_las)
-  # for (label in unique(plots$Name)) {
-  #   check_create_dir(paste0(output_dir, "/", label))
-  # }
+  plots <- st_read(plot_path)
   # extract all plot IDs from vegetation plots
   all_IDs <- c()
   for(idx in 1:nrow(plots)) {
@@ -109,12 +191,28 @@ stack_save_clips <- function(clip_dir, plot_path, output_dir, selection_rasters,
     plot_idx <- which(all_IDs == plot_ID)
     # load & stack all clips of the plot
     plot_paths <- sort(clip_list[grepl(paste0("_", plot_ID, ".tif"), clip_list)])
+    plot_names <- unlist(lapply(strsplit(basename(plot_paths), "_area"), head, n=1))
     plot_rasters <- list()
-    for (idx in 1:length(plot_paths)) {plot_rasters[[idx]] = stack(paste0(clip_dir, "/", plot_paths[idx]))}
+    for (idx in 1:length(plot_paths)) {
+      raster_band <- stack(paste0(clip_dir, "/", plot_paths[idx]))
+      # rescale values
+      if (normalize | standardize) {
+        if (normalize) {
+          min_val <- lookup_table[[paste0(plot_names[idx], "_min")]]
+          max_val <- lookup_table[[paste0(plot_names[idx], "_max")]]
+          raster_band <- (raster_band-min_val)/(max_val-min_val)
+        }
+        if (standardize) {
+          mean_val <- lookup_table[[paste0(plot_names[idx], "_mean")]]
+          sd_val   <- lookup_table[[paste0(plot_names[idx], "_sd")]]
+          raster_band <- scale(raster_band, center=mean_val, scale=sd_val)
+        }
+      }
+      plot_rasters[[idx]] <- raster_band
+    }
     plot_stack <- stack(plot_rasters)
     # determine label & save in according folder
     plot_label <- plots$Name[plot_idx]
-    # writeRaster(plot_stack, paste0(output_dir, "/", plot_label, "/", plot_label, "_", plot_ID, ".tif"))
     writeRaster(plot_stack, paste0(output_dir, "/", plot_label, "_", plot_ID, ".tif"))
   }
 }
@@ -123,11 +221,19 @@ stack_save_clips <- function(clip_dir, plot_path, output_dir, selection_rasters,
 # EXECUTION
 ################################################################################
 
+# create output folder
 check_create_dir(path_output)
+
+# save clip raster values in a file for rescaling, takes a long time, do once
+# clip_value_csv(path_plot, path_clips, path_values)
+
+# get plot_IDs where all rasters are available
 full_IDs <- get_list_full_plots(path_clips, raster_amount)
-stack_save_clips(path_clips, path_plot, paste0(path_output, "/", combo_1$name), combo_1$folders, full_IDs)
-stack_save_clips(path_clips, path_plot, paste0(path_output, "/", combo_2$name), combo_2$folders, full_IDs)
-stack_save_clips(path_clips, path_plot, paste0(path_output, "/", combo_3$name), combo_3$folders, full_IDs)
-stack_save_clips(path_clips, path_plot, paste0(path_output, "/", combo_4$name), combo_4$folders, full_IDs)
+
+# scale, stack, save raster clips
+stack_save_clips(path_clips, path_plot, path_values, paste0(path_output, "/", combo_1$name), combo_1$folders, full_IDs)
+stack_save_clips(path_clips, path_plot, path_values, paste0(path_output, "/", combo_2$name), combo_2$folders, full_IDs)
+stack_save_clips(path_clips, path_plot, path_values, paste0(path_output, "/", combo_3$name), combo_3$folders, full_IDs)
+stack_save_clips(path_clips, path_plot, path_values, paste0(path_output, "/", combo_4$name), combo_4$folders, full_IDs)
 
 ################################################################################

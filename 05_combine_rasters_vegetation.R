@@ -85,9 +85,6 @@ rescale_values <- function(folder) {
 # FILTER MIDSTORY PLOTS
 ################################################################################
 
-# this section would be a lot shorter, if I would habe measured the vegetation
-# height during field work & would have excluded vegetation > 2m height
-
 # filter_midstory_nDSM <- function(plots, nDSM_unscaled_dir, tile_size) {
 #   # check if maximum nDSM values are above 1,9m
 #   # otherwise: delete
@@ -366,6 +363,6 @@ new_path_vegetation <- paste0(substr(path_vegetation_kml, 1, nchar(path_vegetati
 newer_path_vegetation <- paste0(substr(new_path_vegetation, 1, nchar(new_path_vegetation)-4), "_no_overlap.kml")
 
 # clipping rasters to point tiles
-raster_clip_all(path_rasters, newer_path_vegetation, path_clips, clip_these, tile_size, crs_points_raster)
+raster_clip_all(path_rasters, newer_path_vegetation, path_clips, clip_these, tile_size, crs_points_raster, rescale=FALSE)
 
 ################################################################################
