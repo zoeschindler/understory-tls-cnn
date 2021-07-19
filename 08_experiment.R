@@ -9,13 +9,8 @@
 ################################################################################
 
 FLAGS <- flags(flag_numeric("learning_rate", 1e-4),
-               #flag_numeric("decay_multi", 1/100),
                flag_numeric("l2_regularizer", 0.001),
-               #flag_numeric("dropout", 0.5),
-               flag_integer("epochs", 200))#,
-               #flag_boolean("batch_normalization", FALSE),
-               #flag_numeric("filter_factor", 1),
-               #flag_numeric("band_selector", 0.75))
+               flag_integer("epochs", 200))
 
 ################################################################################
 # MODEL
@@ -24,12 +19,8 @@ FLAGS <- flags(flag_numeric("learning_rate", 1e-4),
 model <- get_lenet5(
   width_length = width_length,
   n_bands = n_bands,
-  #n_band_selector = floor(n_bands*FLAGS$band_selector),
   n_classes = n_classes,
-  #filter_factor = FLAGS$filter_factor,
-  l2_regularizer = FLAGS$l2_regularizer)#,
-  #dropout = FLAGS$dropout,
-  #batch_normalization = FLAGS$batch_normalization)
+  l2_regularizer = FLAGS$l2_regularizer)
 
 ################################################################################
 # COMPILE
@@ -47,7 +38,7 @@ model %>% compile(
 ################################################################################
 
 # fit
-history <- model %>% fit(
+history <- model %>% fit_generator(
   balanced$data_train,
   steps_per_epoch = balanced$steps_train,
   epochs = FLAGS$epochs,
@@ -56,9 +47,16 @@ history <- model %>% fit(
 )
 
 ################################################################################
+# SAVE
+################################################################################
+
+# name <- paste0("lr_", FLAGS$learning_rate, "_ep_", FLAGS$epochs, "_l2_", FLAGS$l2_regularizer)
+# model %>% save_model_hdf5(paste0(path_models, "/fold_", fold, "_", name, ".h5"))
+
+################################################################################
 # EVALUATE
 ################################################################################
 
-results <- model %>% evaluate(balanced$data_test, steps=balanced$length_test)
+results <- model %>% evaluate_generator(balanced$data_test, steps=balanced$length_test)
 
 ################################################################################

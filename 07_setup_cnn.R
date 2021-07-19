@@ -126,8 +126,8 @@ tif_to_rds <- function(clip_dir, pixels, bands, folds=5, seed=123) {
 # DATA PREPARATION & AUGMENTATION
 ################################################################################
 
-create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_image=20,
-                           max_length=400, balance_classes=TRUE, batch_size=32) {
+create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_image=100,
+                           max_length=600, balance_classes=TRUE, batch_size=32, na_replacement=-1) {
   # create dataset for CNN
   # load test data
   raw_test <- readRDS(rdata_list[holdout_fold])
@@ -146,12 +146,15 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
     }
   }
   # replace NA with -1 in images
-  img_test[is.na(img_test)] <- -1
-  img_train_vali[is.na(img_train_vali)] <- -1
+  img_test[is.na(img_test)] <- na_replacement
+  img_train_vali[is.na(img_train_vali)] <- na_replacement
   # make stratified split
   fold_indices <- strat_folds(label_train_vali, 5)  # 5 folds -> use 20% for validation
   indices_train <- unlist(fold_indices[1:4])
   indices_vali <- fold_indices[[5]]
+  # fold_indices <- strat_folds(label_train_vali, 10)  # 10 folds -> use 30% for validation
+  # indices_train <- unlist(fold_indices[1:7])
+  # indices_vali <- unlist(fold_indices[8:10])
   img_train <- img_train_vali[indices_train,,,]
   label_train <- label_train_vali[indices_train]
   img_vali <- img_train_vali[indices_vali,,,]
@@ -175,7 +178,7 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
   ###
   if(balance_classes) {
     # duplicate images depending on label frequency
-    duplicated_train_vali <- balance_by_duplicates(label_train_vali, img_train_vali, max_per_image, max_length+100)
+    duplicated_train_vali <- balance_by_duplicates(label_train_vali, img_train_vali, max_per_image, max_length)
     label_train_vali <- duplicated_train_vali$label
     img_train_vali <- duplicated_train_vali$img
     ###
@@ -196,10 +199,10 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
   # data generator with data augmentation, for training data
   do_augmentation <- image_data_generator(
     fill_mode = "reflect",
-    rotation_range = 10,
-    width_shift_range = 0.05,
-    height_shift_range = 0.05,
-    shear_range = 10,
+    rotation_range = 20,
+    width_shift_range = 0.1,
+    height_shift_range = 0.1,
+    shear_range = 20,
     horizontal_flip = TRUE,
     vertical_flip = TRUE)
   # get number of classes
@@ -209,25 +212,25 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
     x = img_test,
     y = to_categorical(label_test)[,2:(label_classes+1)],
     generator = no_augmentation,
-    batch_size=1, shuffle=FALSE)
+    batch_size = 1, shuffle = FALSE)
   # generate batches, for training + validation data
   flow_train_vali <- flow_images_from_data(
     x = img_train_vali,
     y = to_categorical(label_train_vali)[,2:(label_classes+1)],
     generator = do_augmentation,
-    batch_size=batch_size)
+    batch_size = batch_size)
   # generate batches, for training data
   flow_train <- flow_images_from_data(
     x = img_train,
     y = to_categorical(label_train)[,2:(label_classes+1)],
     generator = do_augmentation,
-    batch_size=batch_size)
+    batch_size = batch_size)
   # generate batches, for validation data
   flow_vali <- flow_images_from_data(
     x = img_vali,
     y = to_categorical(label_vali)[,2:(label_classes+1)],
     generator = no_augmentation,
-    batch_size=1, shuffle=FALSE)
+    batch_size = 1, shuffle = FALSE)
   # return ready to use image_generators & steps per epoch
   return(list(data_test = flow_test,
               data_train_vali = flow_train_vali,
@@ -243,161 +246,37 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
 # LeNet-5
 # http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf
 # https://www.kaggle.com/curiousprogrammer/lenet-5-cnn-with-keras-99-48 (based on this code)
+# https://github.com/BIGBALLON/cifar-10-cnn/blob/master/1_Lecun_Network/LeNet_dp_da_wd_keras.py (and this code)
 ################################################################################
 
-# get_lenet5 <- function(width_length, n_bands, n_band_selector, n_classes, filter_factor=1,
-#                        l2_regularizer=0.001, dropout=0.5, batch_normalization=FALSE) {
-#   model <- keras_model_sequential()
-#   # band selector
-#   model %>%
-#     layer_conv_2d(input_shape = c(width_length, width_length, n_bands),
-#                   filters = n_band_selector, kernel_size = c(1,1),
-#                   strides = c(1,1), padding="same")
-#   # main model
-#   model %>%
-#     layer_conv_2d(filters = 32 * filter_factor, kernel_size = c(5,5),
-#                   activation = "relu", padding="same",
-#                   kernel_regularizer = regularizer_l2(l2_regularizer))
-#   if(batch_normalization) {
-#     model %>% layer_batch_normalization()
-#   }
-#   model %>%
-#     layer_max_pooling_2d() %>%
-#     layer_conv_2d(filters = 48 * filter_factor, kernel_size = c(5,5), activation = "relu",
-#                   padding="same", kernel_regularizer = regularizer_l2(l2_regularizer))
-#   if(batch_normalization) {
-#     model %>% layer_batch_normalization()
-#   }
-#   model %>%
-#     layer_max_pooling_2d() %>%
-#     layer_flatten() %>%
-#     layer_dense(units = 256 * filter_factor, activation = "relu") %>%
-#     layer_dropout(0.3) %>%
-#     layer_dense(units = 84 * filter_factor, activation = "relu") %>%
-#     layer_dropout(0.5) %>%
-#     layer_dense(units = n_classes, activation = "softmax")
-#   return(model)
-# }
-
-get_lenet5 <- function(width_length, n_bands, n_classes, filter_factor=1, l2_regularizer=0.001, seed=NULL) {
+get_lenet5 <- function(width_length, n_bands, n_classes, l2_regularizer=0.001) {
   model <- keras_model_sequential() %>%
     layer_conv_2d(input_shape = c(width_length, width_length, n_bands),
-                  filters = 32 * filter_factor, kernel_size = c(5,5), padding="same",
-                  kernel_regularizer=regularizer_l2(l2_regularizer),
-                  kernel_initializer="he_normal") %>%
+                  filters = 32, kernel_size = c(5,5), padding = "same",
+                  kernel_regularizer = regularizer_l2(l2_regularizer),
+                  kernel_initializer = "he_normal") %>%
     layer_activation_leaky_relu() %>%
     layer_batch_normalization() %>%
     layer_max_pooling_2d() %>%
-    layer_conv_2d(filters = 48 * filter_factor, kernel_size = c(5,5), padding="same",
-                  kernel_regularizer=regularizer_l2(l2_regularizer),
-                  kernel_initializer="he_normal") %>%
+    layer_conv_2d(filters = 48, kernel_size = c(5,5), padding = "same",
+                  kernel_regularizer = regularizer_l2(l2_regularizer),
+                  kernel_initializer = "he_normal") %>%
     layer_activation_leaky_relu() %>%
     layer_batch_normalization() %>%
     layer_max_pooling_2d() %>%
     layer_flatten() %>%
-    layer_dense(units = 256 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer),
-                kernel_initializer="he_normal") %>%
+    layer_dense(units = 256,
+                kernel_regularizer = regularizer_l2(l2_regularizer),
+                kernel_initializer = "he_normal") %>%
     layer_activation_leaky_relu() %>%
-    layer_batch_normalization() %>%
-    layer_dropout(0.3) %>%
-    layer_dense(units = 84 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer),
-                kernel_initializer="he_normal") %>%
+    layer_dropout(0.5) %>%
+    layer_dense(units = 84,
+                kernel_regularizer = regularizer_l2(l2_regularizer),
+                kernel_initializer = "he_normal") %>%
     layer_activation_leaky_relu() %>%
-    layer_batch_normalization() %>%
     layer_dropout(0.5) %>%
     layer_dense(units = n_classes, activation = "softmax",
-                kernel_initializer="he_normal")
-  return(model)
-}
-
-# get_lenet5 <- function(width_length, n_bands, n_classes, filter_factor=1, l2_regularizer=0.001) {
-#   model <- keras_model_sequential() %>%
-#     layer_conv_2d(input_shape = c(width_length, width_length, n_bands),
-#                   filters = 7, kernel_size = c(1,1), padding="same", strides=c(1,1)) %>%
-#     layer_activation_leaky_relu() %>%
-#     layer_conv_2d(filters = 32 * filter_factor, kernel_size = c(5,5), padding="same",
-#                   kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
-#     layer_activation_leaky_relu() %>%
-#     layer_max_pooling_2d() %>%
-#     layer_conv_2d(filters = 48 * filter_factor, kernel_size = c(5,5), padding="same",
-#                   kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
-#     layer_activation_leaky_relu() %>%
-#     layer_max_pooling_2d() %>%
-#     layer_flatten() %>%
-#     layer_dense(units = 256 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
-#     layer_activation_leaky_relu() %>%
-#     layer_dropout(0.3) %>%
-#     layer_dense(units = 84 * filter_factor, kernel_regularizer=regularizer_l2(l2_regularizer)) %>%
-#     layer_activation_leaky_relu() %>%
-#     layer_dropout(0.5) %>%
-#     layer_dense(units = n_classes, activation = "softmax")
-#   return(model)
-# }
-
-################################################################################
-# VGG-16
-# https://arxiv.org/pdf/1409.1556.pdf
-# https://towardsdatascience.com/step-by-step-vgg16-implementation-in-keras-for-beginners-a833c686ae6c (based on this code)
-################################################################################
-
-get_vgg16 <- function(width_length, n_bands, n_band_selector, n_classes, filter_factor=1,
-                      l2_regularizer=0.001, dropout=0.5, batch_normalization=FALSE, n_blocks=3) {  # maximum of 3 blocks
-  last_layer_filters <- 64 * (n_blocks-1) * 16 * filter_factor  # last number of filters is 8-fold of last layer
-  model <- keras_model_sequential()
-  # band selector
-  model %>% layer_conv_2d(input_shape = c(width_length, width_length, n_bands), filters = n_band_selector,
-                          kernel_size = c(1,1), strides = c(1,1), padding="same")
-  # main model
-  # block 1
-  model %>%
-    layer_conv_2d(filters = 64 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same",
-                  kernel_regularizer = regularizer_l2(l2_regularizer)) %>%
-    layer_conv_2d(filters = 64 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same",
-                  kernel_regularizer = regularizer_l2(l2_regularizer))
-  if(batch_normalization) {
-    model %>%
-      layer_batch_normalization()
-  }
-  model %>%
-    layer_max_pooling_2d()
-  # block 2
-  if (n_blocks >= 2) {
-    model %>%
-      layer_conv_2d(filters = 128 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same",
-                    kernel_regularizer = regularizer_l2(l2_regularizer)) %>%
-      layer_conv_2d(filters = 128 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same",
-                    kernel_regularizer = regularizer_l2(l2_regularizer))
-    if(batch_normalization) {
-      model %>%
-        layer_batch_normalization()
-    }
-    model %>%
-      layer_max_pooling_2d()
-  }
-  # block 3
-  if (n_blocks == 3) {
-    model %>%
-      layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same",
-                    kernel_regularizer = regularizer_l2(l2_regularizer)) %>%
-      layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same",
-                    kernel_regularizer = regularizer_l2(l2_regularizer)) %>%
-      layer_conv_2d(filters = 256 * filter_factor, kernel_size = c(3,3), activation = "relu", padding = "same",
-                    kernel_regularizer = regularizer_l2(l2_regularizer))
-    if(batch_normalization) {
-      model %>%
-        layer_batch_normalization()
-    }
-    model %>%
-      layer_max_pooling_2d()
-  }
-  # last block
-  model %>%
-    layer_flatten() %>%
-    layer_dense(units = last_layer_filters, activation = "relu") %>%
-    layer_dropout(dropout) %>%
-    layer_dense(units = last_layer_filters, activation = "relu") %>%
-    layer_dropout(dropout) %>%
-    layer_dense(units = n_classes, activation = "softmax")
+                kernel_initializer = "he_normal")
   return(model)
 }
 
