@@ -7,7 +7,6 @@
 # load packages
 library(ggplot2)
 library(ggpubr)
-library(grid)
 library(sf)
 library(dplyr)
 library(scales)
@@ -18,10 +17,12 @@ loadfonts(device="pdf", quiet=TRUE)
 
 # set paths
 path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_checked_filtered_no_overlap.kml"  # input
-path_rasters    <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters_1cm"  # input
+path_rasters    <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters_2cm"  # input
 path_models     <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models_2cm_lenet5_10cv"  # input
 path_labels     <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/model_input_2cm/tls/label_lookup.csv"  # input
 path_plots      <- "H:/Daten/Studium/2_Master/4_Semester/5_Analyse/Plots"  # output
+path_raster_val_before <- paste0(path_rasters, "/raster_samples_scaled.csv")
+path_raster_val_after  <- paste0(path_rasters, "/raster_samples_scaled_noncollinear.csv")
 
 # set parameters
 crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +vunits=m +no_defs"
@@ -53,9 +54,80 @@ own_colors <- c(own_colors_named$blue, own_colors_named$red, own_colors_named$ye
 # CLUSTERS & PCA
 ################################################################################
 
-# cluster before & after
+# read in data
+raster_val_before <- read.csv(path_raster_val_before)
+names(raster_val_before) <- c("Anisotropy, max", "Anisotropy, mean", "Anisotropy, sd",
+                              "Curvature, max", "Curvature, mean", "Curvature, sd",
+                              "Linearity, max", "Linearity, mean", "Linearity, sd",
+                              "Planarity, max", "Planarity, mean", "Planarity, sd",
+                              "Sphericity max,", "Sphericity, mean", "Sphericity, sd",
+                              "nDSM", "Point Density",
+                              "Reflectance, max", "Reflectance, mean", "Reflectance, sd")
+raster_val_after  <- read.csv(path_raster_val_after)
+names(raster_val_after) <- c("Anisotropy, max", "Curvature, max", "Linearity, max",
+                             "Linearity, sd", "Planarity, mean", "Planarity, sd", "nDSM",
+                             "Point Density", "Reflectance, mean", "Reflectance, sd")
 
-# PCA after (before too cluttered)
+library(ggcorrplot)
+
+# make correlation matrix
+cor_matrix_before <- cor(raster_val_before, method="spearman")
+p_matrix_before <- cor_pmat(raster_val_before)
+cor_matrix_after <- cor(raster_val_after, method="spearman")
+p_matrix_after <- cor_pmat(raster_val_after)
+
+# corr plot before
+cairo_pdf(file = paste0(path_plots, "/corr_before.pdf"), family = "Calibri", width = 8.27, height = 5.83)
+ggcorrplot(cor_matrix_before, type = "lower", outline.col = "white", 
+           ggtheme = ggplot2::theme_light, sig.level=0.05,
+           colors = c(own_colors_named$blue, "gray90", own_colors_named$red),
+           legend.title = "Spearman's\nCorrelation\nCoefficient\n", tl.cex = 14, tl.srt = 45) +
+  theme(text = element_text(size=16, family="Calibri"), plot.title = element_text(hjust = 0.5),
+        legend.text = element_text(family="Calibri", size = 14),
+        legend.box.spacing = unit(0.5, "cm"), legend.key.width = unit(0.5, "cm"),
+        legend.key.height = unit(1.5, "cm"))
+dev.off()
+
+
+# corr plot after
+cairo_pdf(file = paste0(path_plots, "/corr_after.pdf"), family = "Calibri", width = 8.27, height = 5.83)
+ggcorrplot(cor_matrix_after, type = "lower", outline.col = "white", 
+           lab = TRUE, lab_col = "grey25", lab_size = 5,
+           ggtheme = ggplot2::theme_light, sig.level=0.05,
+           colors = c(own_colors_named$blue, "gray90", own_colors_named$red),
+           legend.title = "Spearman's\nCorrelation\nCoefficient\n", tl.cex = 16, tl.srt = 45) +
+  theme(text = element_text(size=18, family="Calibri"), plot.title = element_text(hjust = 0.5),
+        legend.text = element_text(family="Calibri", size = 16),
+        legend.box.spacing = unit(0.5, "cm"), legend.key.width = unit(0.5, "cm"),
+        legend.key.height = unit(1.5, "cm"))
+dev.off()
+
+# # corrplot
+# library(corrplot)
+# par(xpd = TRUE)
+# corrplot(cor_matrix_before, type="lower", method="color", tl.col="black", tl.srt=45, addgrid.col = "gray50", mar=c(0,0,5,0))
+# corrplot(cor_matrix_after, type="lower", method="color", tl.col="black", tl.srt=45, addgrid.col = "gray50", mar=c(0,0,5,0))
+# 
+# # varclus
+# library(Hmisc)
+# cluster <- varclus(as.matrix(raster_val_before), similarity = "spearman")
+# plot(cluster)
+# 
+# # PCA biplot
+# pca_remains <- prcomp(raster_val_after)
+# biplot(pca_remains, cex=c(0.5,1), xlim = c(-0.08, 0.08), ylim = c(-0.08, 0.08), col=c("black","deeppink3"))
+# 
+# # PCA biplot
+# library(ggbiplot)
+# ggbiplot(pca_remains, obs.scale = 2, var.scale = 2, alpha=0.1, labels.size = 10, varname.size=5, varname.adjust = 1.5) 
+#   theme_light(base_size=14) +
+#   theme(legend.direction = 'horizontal', legend.position = 'top')
+# 
+#   # PCA biplot
+# library(AMR)
+# ggplot_pca(pca_remains, arrows_colour = "red", arrows_size = 1,
+#            arrows_textsize = 5, points_alpha = 0.1, arrows_textangled = T) +
+#   theme_light()
 
 ################################################################################
 # RASTER STATISTICS & LABELS
@@ -199,7 +271,7 @@ dev.off()
 # all geometry values (anisotropy_max, curvature_max, linearity_max, linearity_sd, planarity_mean, planarity_sd)
 cairo_pdf(file = paste0(path_plots, "/geo_raster_stats.pdf"), family = "Calibri", width = 8.27, height = 5.83)
 plot_aniso_max <- raster_stat_plot(raster_vals, "Anisotropy, max", "anisotropy_max")
-plot_curv_max  <- raster_stat_plot(raster_vals, "Curvature, max", "curvature_max")
+plot_curv_max  <- raster_stat_plot(raster_vals, "Change of Curvature, max", "curvature_max")
 plot_linea_max <- raster_stat_plot(raster_vals, "Linearity, max", "linearity_max")
 plot_linea_sd  <- raster_stat_plot(raster_vals, "Linearity, sd", "linearity_sd")
 plot_plan_mean <- raster_stat_plot(raster_vals, "Planarity, mean", "planarity_mean")
@@ -225,7 +297,34 @@ dev.off()
 
 ################################################################################
 
-# i want radarplots but they are not popular
+# i want radarplots but they are not popular :(
+
+################################################################################
+# LABELS & AREAS
+################################################################################
+
+# load & prepare data
+final_points <- as.data.frame(st_read(path_vegetation))
+final_points$area <- as.numeric(substr(lapply(strsplit(final_points$Description, " "), "[[", 2), 1, 1))
+final_points <- final_points[final_points$Name!="rock" & final_points$Name!="grass",]
+
+# total number
+nrow(final_points)
+
+# classes per area & total amount of points per area
+for (i in 1:8) {
+  print(paste0("area: ", i))
+  print(paste0("length: ", length(final_points$Name[final_points$area == i])))
+  print(summary(as.factor(final_points$Name[final_points$area == i])))
+  print("-----")
+}
+
+# total amount of points per class
+for (class in unique(final_points$Name)) {
+  print(paste0("class: ", class))
+  print(paste0("length: ", nrow(final_points[final_points$Name == class,])))
+  print("-----")
+}
 
 ################################################################################
 # HYPERPARAMETERS & ACCURACY & LOSS
@@ -248,7 +347,7 @@ conf_matrix_plot <- function(pred_data, fold) {
     pred_data <- pred_data[pred_data$fold == fold,]
   }
   # make confusion matrix
-  conf <- confusionMatrix(as.factor(pred_data$predictions), as.factor(pred_data$truth))
+  conf <- confusionMatrix(as.factor(pred_data$predictions), as.factor(pred_data$truth), mode="everything")
   conf_data <- data.frame(conf$table)
   # reverse order of predictions
   conf_data$Prediction <- factor(conf_data$Prediction, levels=rev(levels(conf_data$Prediction)))
