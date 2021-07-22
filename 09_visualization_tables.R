@@ -7,6 +7,7 @@
 # load packages
 library(ggplot2)
 library(ggpubr)
+library(ggcorrplot)
 library(sf)
 library(dplyr)
 library(scales)
@@ -30,19 +31,27 @@ used_rasters   <- c("ortho", "anisotropy_max", "curvature_max", "linearity_max",
                     "linearity_sd", "planarity_mean", "planarity_sd", "nDSM",
                     "point_density", "reflectance_mean", "reflectance_sd")
 
-# use custom color palette
-own_colors_named <- list(gray_green = "#96ceb4",
-                         light_yellow = "#ffeead",
-                         red = "#ff6f69",
+# use custom color palette, bright
+own_colors_named <- list(red = "#ff6f69",
                          blue = "#00aedb",
                          yellow = "#ffcc5c",
                          green = "#88d8b0",
                          turquoise = "#4abdac",
                          pink = "#ff8b94",
-                         orange = "#ff9a00",
                          bright_green = "#cbe885")
 own_colors <- c(own_colors_named$blue, own_colors_named$red, own_colors_named$yellow,
                 own_colors_named$bright_green, own_colors_named$green)
+
+# # use custom color palette, muted
+# own_colors_named <- list(blue = "#70ABC2",
+#                          turquoise = "#99E0D8",
+#                          yellow = "#F1D07E",
+#                          orange = "#F6A969",
+#                          red = "#E9795D",
+#                          purple = "#B9A4C9",
+#                          green = "#A3CC8E")
+# own_colors <- c(own_colors_named$blue, own_colors_named$red, own_colors_named$orange,
+#                 own_colors_named$yellow, own_colors_named$green)
 
 ################################################################################
 # RAW POINT CLOUDS
@@ -67,8 +76,6 @@ raster_val_after  <- read.csv(path_raster_val_after)
 names(raster_val_after) <- c("Anisotropy, max", "Curvature, max", "Linearity, max",
                              "Linearity, sd", "Planarity, mean", "Planarity, sd", "nDSM",
                              "Point Density", "Reflectance, mean", "Reflectance, sd")
-
-library(ggcorrplot)
 
 # make correlation matrix
 cor_matrix_before <- cor(raster_val_before, method="spearman")
@@ -210,7 +217,7 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate=TRUE, log=FA
   }
   if (!log) {
     plot <- ggplot(data[data$type == raster_type,], aes(x = label, y = values)) +
-      stat_boxplot(geom = 'errorbar', width = 0.15) +
+      stat_boxplot(geom = 'errorbar', width = 0.25) +
       geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75) +
       xlab("") + ylab("") + ggtitle(y_label) +
       scale_x_discrete(labels = label_vector) +
@@ -222,7 +229,7 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate=TRUE, log=FA
     data$values[data$type == raster_type & data$values == 0] <- NA
     data <- na.omit(data)
     plot <- ggplot(data[data$type == raster_type,], aes(x = label, y = values+1)) +
-      stat_boxplot(geom = 'errorbar', width = 0.15) +
+      stat_boxplot(geom = 'errorbar', width = 0.25) +
       geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75) +
       xlab("") + ylab("") + ggtitle(y_label) +
       scale_x_discrete(labels = label_vector) +
@@ -264,8 +271,7 @@ plot_red   <- raster_stat_plot(raster_vals, "Red", "R")
 plot_green <- raster_stat_plot(raster_vals, "Green", "G")
 plot_blue  <- raster_stat_plot(raster_vals, "Blue", "B")
 ggarrange(plot_red, plot_green, plot_blue,
-          ncol = 3, nrow = 1,
-          legend.grob = plot_legend_line, legend = "bottom")
+          ncol = 3, nrow = 1, legend.grob = plot_legend_line, legend = "bottom")
 dev.off()
 
 # all geometry values (anisotropy_max, curvature_max, linearity_max, linearity_sd, planarity_mean, planarity_sd)
@@ -278,8 +284,7 @@ plot_plan_mean <- raster_stat_plot(raster_vals, "Planarity, mean", "planarity_me
 plot_plan_sd   <- raster_stat_plot(raster_vals, "Planarity, sd", "planarity_sd")
 ggarrange(plot_aniso_max, plot_curv_max, plot_linea_max,
           plot_linea_sd, plot_plan_mean, plot_plan_sd, 
-          ncol = 3, nrow = 2,
-          legend.grob = plot_legend_line, legend = "bottom")
+          ncol = 3, nrow = 2, legend.grob = plot_legend_line, legend = "bottom")
 dev.off()
 
 # all tls values (nDSM, point_density, reflectance_mean, reflectance_sd)
@@ -289,10 +294,8 @@ plot_dens     <- raster_stat_plot(raster_vals, "Point Density", "point_density",
 plot_nDSM     <- raster_stat_plot(raster_vals, "nDSM Height", "nDSM")
 plot_ref_mean <- raster_stat_plot(raster_vals, "Reflectance, mean", "reflectance_mean")
 plot_ref_sd   <- raster_stat_plot(raster_vals, "Reflectance, sd", "reflectance_sd")
-ggarrange(plot_dens, plot_nDSM,
-          plot_ref_mean, plot_ref_sd,
-          ncol = 2, nrow = 2,
-          legend.grob = plot_legend_line, legend = "bottom")
+ggarrange(plot_dens, plot_nDSM, plot_ref_mean, plot_ref_sd,
+          ncol = 2, nrow = 2, legend.grob = plot_legend_line, legend = "bottom")
 dev.off()
 
 ################################################################################
