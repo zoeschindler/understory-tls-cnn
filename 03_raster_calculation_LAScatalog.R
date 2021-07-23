@@ -6,7 +6,6 @@
 
 # load packages
 library(lidR)
-library(rlas)
 library(sf)
 library(future)
 library(raster)
