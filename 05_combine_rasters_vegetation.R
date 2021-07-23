@@ -7,7 +7,6 @@
 # load packages
 library(lidR)
 library(sf)
-library(rgl)
 library(jpeg)
 
 # set paths
