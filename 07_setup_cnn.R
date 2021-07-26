@@ -127,7 +127,7 @@ tif_to_rds <- function(clip_dir, pixels, bands, folds=5, seed=123) {
 ################################################################################
 
 create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_image=100,
-                           max_length=600, balance_classes=TRUE, batch_size=32, na_replacement=-1) {
+                           max_length=600, balance_classes=TRUE, na_replacement=0) {
   # create dataset for CNN
   # load test data
   raw_test <- readRDS(rdata_list[holdout_fold])
@@ -152,9 +152,6 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
   fold_indices <- strat_folds(label_train_vali, 5)  # 5 folds -> use 20% for validation
   indices_train <- unlist(fold_indices[1:4])
   indices_vali <- fold_indices[[5]]
-  # fold_indices <- strat_folds(label_train_vali, 10)  # 10 folds -> use 30% for validation
-  # indices_train <- unlist(fold_indices[1:7])
-  # indices_vali <- unlist(fold_indices[8:10])
   img_train <- img_train_vali[indices_train,,,]
   label_train <- label_train_vali[indices_train]
   img_vali <- img_train_vali[indices_vali,,,]
@@ -214,17 +211,29 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
     generator = no_augmentation,
     batch_size = 1, shuffle = FALSE)
   # generate batches, for training + validation data
-  flow_train_vali <- flow_images_from_data(
+  flow_train_vali_16 <- flow_images_from_data(
     x = img_train_vali,
     y = to_categorical(label_train_vali)[,2:(label_classes+1)],
     generator = do_augmentation,
-    batch_size = batch_size)
+    batch_size = 16)
   # generate batches, for training data
-  flow_train <- flow_images_from_data(
+  flow_train_16 <- flow_images_from_data(
     x = img_train,
     y = to_categorical(label_train)[,2:(label_classes+1)],
     generator = do_augmentation,
-    batch_size = batch_size)
+    batch_size = 16)
+  # generate batches, for training + validation data
+  flow_train_vali_32 <- flow_images_from_data(
+    x = img_train_vali,
+    y = to_categorical(label_train_vali)[,2:(label_classes+1)],
+    generator = do_augmentation,
+    batch_size = 32)
+  # generate batches, for training data
+  flow_train_32 <- flow_images_from_data(
+    x = img_train,
+    y = to_categorical(label_train)[,2:(label_classes+1)],
+    generator = do_augmentation,
+    batch_size = 32)
   # generate batches, for validation data
   flow_vali <- flow_images_from_data(
     x = img_vali,
@@ -233,13 +242,17 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
     batch_size = 1, shuffle = FALSE)
   # return ready to use image_generators & steps per epoch
   return(list(data_test = flow_test,
-              data_train_vali = flow_train_vali,
-              data_train = flow_train,
+              data_train_vali_16 = flow_train_vali_16,
+              data_train_16 = flow_train_16,
+              data_train_vali_32 = flow_train_vali_32,
+              data_train_32 = flow_train_32,
               data_vali = flow_vali,
               length_test = length(label_test),
               length_vali = length(label_vali),
-              steps_train_vali = round(length(label_train_vali)/batch_size),
-              steps_train = round(length(label_train)/batch_size)))
+              steps_train_vali_16 = round(length(label_train_vali)/16),
+              steps_train_16 = round(length(label_train)/16),
+              steps_train_vali_32 = round(length(label_train_vali)/32),
+              steps_train_32 = round(length(label_train)/32)))
 }
 
 ################################################################################
@@ -249,7 +262,7 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
 # https://github.com/BIGBALLON/cifar-10-cnn/blob/master/1_Lecun_Network/LeNet_dp_da_wd_keras.py (and this code)
 ################################################################################
 
-get_lenet5 <- function(width_length, n_bands, n_classes, l2_regularizer=0.001) {
+get_lenet5 <- function(width_length, n_bands, n_classes, dropout=0.5, l2_regularizer=0.01) {
   model <- keras_model_sequential() %>%
     layer_conv_2d(input_shape = c(width_length, width_length, n_bands),
                   filters = 32, kernel_size = c(5,5), padding = "same",
@@ -269,12 +282,12 @@ get_lenet5 <- function(width_length, n_bands, n_classes, l2_regularizer=0.001) {
                 kernel_regularizer = regularizer_l2(l2_regularizer),
                 kernel_initializer = "he_normal") %>%
     layer_activation_leaky_relu() %>%
-    layer_dropout(0.5) %>%
+    layer_dropout(dropout) %>%
     layer_dense(units = 84,
                 kernel_regularizer = regularizer_l2(l2_regularizer),
                 kernel_initializer = "he_normal") %>%
     layer_activation_leaky_relu() %>%
-    layer_dropout(0.5) %>%
+    layer_dropout(dropout) %>%
     layer_dense(units = n_classes, activation = "softmax",
                 kernel_initializer = "he_normal")
   return(model)

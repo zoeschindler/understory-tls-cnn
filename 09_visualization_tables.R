@@ -120,6 +120,18 @@ dev.off()
 # cluster <- varclus(as.matrix(raster_val_before), similarity = "spearman")
 # plot(cluster)
 # 
+# library(ggdendro)
+# tree <- hclust(as.dist(1 - cor_matrix_before**2))
+# plot(tree) # same as when using hmisc varclus, aber unten muss 1 sein und oben 0
+# ggdendrogram(tree) +
+#   theme_light() +
+#   theme(text = element_text(size=16, family="Calibri")) +
+#   xlab("") +
+#   ylab("Spearmans rho squared") +
+#   scale_y_continuous(breaks=seq(0,1,0.25), labels=rev(seq(0,1,0.25))) +
+#   geom_hline(yintercept=0.7*0.7, col = own_colors_named$red) +
+#   coord_flip()
+# 
 # # PCA biplot
 # pca_remains <- prcomp(raster_val_after)
 # biplot(pca_remains, cex=c(0.5,1), xlim = c(-0.08, 0.08), ylim = c(-0.08, 0.08), col=c("black","deeppink3"))
@@ -277,7 +289,7 @@ dev.off()
 # all geometry values (anisotropy_max, curvature_max, linearity_max, linearity_sd, planarity_mean, planarity_sd)
 cairo_pdf(file = paste0(path_plots, "/geo_raster_stats.pdf"), family = "Calibri", width = 8.27, height = 5.83)
 plot_aniso_max <- raster_stat_plot(raster_vals, "Anisotropy, max", "anisotropy_max")
-plot_curv_max  <- raster_stat_plot(raster_vals, "Change of Curvature, max", "curvature_max")
+plot_curv_max  <- raster_stat_plot(raster_vals, "Curvature, max", "curvature_max")
 plot_linea_max <- raster_stat_plot(raster_vals, "Linearity, max", "linearity_max")
 plot_linea_sd  <- raster_stat_plot(raster_vals, "Linearity, sd", "linearity_sd")
 plot_plan_mean <- raster_stat_plot(raster_vals, "Planarity, mean", "planarity_mean")
