@@ -8,6 +8,7 @@
 library(ggplot2)
 library(ggpubr)
 library(ggcorrplot)
+library(ggdendro)
 library(sf)
 library(dplyr)
 library(scales)
@@ -119,19 +120,24 @@ dev.off()
 # library(Hmisc)
 # cluster <- varclus(as.matrix(raster_val_before), similarity = "spearman")
 # plot(cluster)
-# 
-# library(ggdendro)
-# tree <- hclust(as.dist(1 - cor_matrix_before**2))
-# plot(tree) # same as when using hmisc varclus, aber unten muss 1 sein und oben 0
-# ggdendrogram(tree) +
-#   theme_light() +
-#   theme(text = element_text(size=16, family="Calibri")) +
-#   xlab("") +
-#   ylab("Spearmans rho squared") +
-#   scale_y_continuous(breaks=seq(0,1,0.25), labels=rev(seq(0,1,0.25))) +
-#   geom_hline(yintercept=0.7*0.7, col = own_colors_named$red) +
-#   coord_flip()
-# 
+
+tree <- hclust(as.dist(1 - cor_matrix_before**2))
+# with help of: https://stackoverflow.com/questions/68557415/dendrogram-with-labels-on-the-right-side
+data <- ggdendro::dendro_data(tree)
+ggplot() +
+  geom_blank()+
+  geom_segment(data = segment(data), aes_string(x = "x", y = "y", xend = "xend", yend = "yend")) +
+  geom_hline(yintercept=0.7*0.7, col = own_colors_named$red) +
+  scale_x_continuous(breaks = seq_along(data$labels$label), labels = data$labels$label, position = "top") +
+  scale_y_reverse(breaks=seq(0,1,0.25), labels=rev(seq(0,1,0.25))) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = angle, hjust = 1, vjust = 0.5),
+        axis.text.y = element_text(angle = angle, hjust = 1),
+        text = element_text(size=16, family="Calibri")) +
+  ylab("Spearmans rho squared") +
+  xlab("") +
+  theme_light()
+
 # # PCA biplot
 # pca_remains <- prcomp(raster_val_after)
 # biplot(pca_remains, cex=c(0.5,1), xlim = c(-0.08, 0.08), ylim = c(-0.08, 0.08), col=c("black","deeppink3"))
