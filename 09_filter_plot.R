@@ -296,12 +296,15 @@ colors <- c("Original Data" = "grey85", "+ without Stems" = "grey65",
 
 csv_all <- csv_all[csv_all$X < 446450, ]
 
-# plot
+# plot big
 big <- ggplot() +
   geom_point(data=csv_all, aes(x=X, y=Z, col = source), size=0.1) +
-  geom_hline(yintercept=2, linetype="longdash", size=0.25) +
+  geom_hline(yintercept=2, linetype="dashed", size=0.25, color="grey10") +
+  geom_rect(aes(xmin=446400-0.25, xmax=446419+0.25, ymin=0-0.25, ymax=2+0.25),
+            fill="white", alpha=0, color="grey10", linetype="solid", size=0.25) +
   #ylab("Height (m)") + xlab("x-Coordinate (WGS 84 / UTM Zone 32N)") +
   ylab("Height (m)\n") + xlab("") +
+  scale_y_continuous(lim=c(-0.25, 26)) +
   coord_fixed() +
   theme_light() +
   scale_color_manual(values = colors) +
@@ -313,11 +316,15 @@ big <- ggplot() +
         legend.position = "bottom") +
   guides(color = guide_legend(override.aes = list(size = 3.5), title="Processing Step"))
 
+# plot small
 small <- ggplot() +
-  geom_point(data=csv_all[csv_all$Z <= 2 & csv_all$X < 446416.5, ], aes(x=X, y=Z, col = source), size=0.25) +
+  geom_point(data=csv_all[csv_all$Z <= 2.25 & csv_all$X < 446419+0.25, ], aes(x=X, y=Z, col = source), size=0.25) +
+  geom_hline(yintercept=2, linetype="dashed", size=0.25, color="grey10") +
+  geom_rect(aes(xmin=446400-0.25, xmax=446419+0.25, ymin=0-0.25, ymax=2+0.25),
+            fill="white", alpha=0, color="grey10", linetype="solid", size=0.25) +
   #ylab("Height (m)") + xlab("x-Coordinate (WGS 84 / UTM Zone 32N)") +
   ylab("Height (m)\n") + xlab("") +
-  scale_y_continuous(breaks=0:2) +
+  scale_y_continuous(breaks=0:2, lim=c(-0.25, 2.25)) +
   coord_fixed() +
   theme_light() +
   scale_color_manual(values = colors) +
@@ -329,9 +336,10 @@ small <- ggplot() +
         legend.position = "bottom") +
   guides(color = guide_legend(override.aes = list(size = 3.5), title="Processing Step"))
 
-
+# legend
 legend <- get_legend(small)
 
+# combine & save
 cairo_pdf(file = paste0(path_plots, "/filtering_both.pdf"), family = "Calibri", width = 8.27, height = 5.83)
 ggarrange(big, small, heights = c(3, 1),
           ncol = 1, nrow = 2, legend.grob = legend, legend = "bottom", align="v")
