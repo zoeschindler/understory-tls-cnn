@@ -12,6 +12,7 @@
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_experiment.R">08_experiment.R</a>: for `tfruns` & hyperparameter optimization (in progress)<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/09_visualization_tables.R ">09_visualization_tables.R</a>: create result visualizations (in progress)<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/09_filter_plot.R">09_filter_plot.R</a>: visualization of the understory filtering (in progress)<br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/09_prediction_map.R">09_prediction_map.R</a>: visualize prediction results on one complete area (in progress)<br>
 
 ## Workflow: Data Preparation
 
