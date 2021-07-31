@@ -1,14 +1,12 @@
 ################################################################################
 ################################################################################
-# RASTER CALCULATION - LAS CATALOGS
+# CREATE FILTER PLOT
 ################################################################################
 ################################################################################
 
 # load packages
 library(lidR)
-library(rlas)
 library(sf)
-library(future)
 library(raster)
 library(ggplot2)
 library(ggpubr)
@@ -34,8 +32,6 @@ path_plots     <- "H:/Daten/Studium/2_Master/4_Semester/5_Analyse/Plots"  # outp
 # REMOVE STEMS
 ################################################################################
 
-plan(multisession, workers=2L)
-
 # load data
 ctg_01 <- readTLSLAScatalog(path_points_01)
 
@@ -45,7 +41,7 @@ opt_chunk_size(ctg_01) <- chunk_size
 check_create_dir(path_points_02)
 opt_output_files(ctg_01) <- paste0(path_points_02, "/{ID}")
 
-###
+################################################################################
 
 filter_stem_ctg.LAScluster <- function(las) {
   las <- readLAS(las)
@@ -68,7 +64,7 @@ filter_stem_ctg.LAScatalog <- function(las, height=2, remove_stems=TRUE) {
   return(output)
 }
 
-###
+################################################################################
 
 # execute
 ctg_02 <- filter_stem_ctg.LAScatalog(ctg_01)
@@ -87,7 +83,7 @@ opt_chunk_size(ctg_02) <- chunk_size
 check_create_dir(path_points_03)
 opt_output_files(ctg_02) <- paste0(path_points_03, "/{ID}")
 
-###
+################################################################################
 
 filter_2m_ctg.LAScluster <- function(las) {
   las <- readLAS(las)
@@ -107,6 +103,8 @@ filter_2m_ctg.LAScatalog <- function(las, height=2, remove_stems=TRUE) {
   return(output)
 }
 
+################################################################################
+
 # execute
 ctg_03 <- filter_2m_ctg.LAScatalog(ctg_02)
 lidR:::catalog_laxindex(ctg_03)
@@ -124,7 +122,7 @@ opt_chunk_size(ctg_03) <- chunk_size
 check_create_dir(path_points_04)
 opt_output_files(ctg_03) <- paste0(path_points_04, "/{ID}")
 
-###
+################################################################################
 
 filter_understory_ctg.LAScluster <- function(las) {
   # returns point cloud without understory (LAS file)
@@ -201,7 +199,7 @@ filter_understory_ctg.LAScatalog <- function(las) {
   return(output)
 }
 
-###
+################################################################################
 
 # execute
 ctg_04 <- filter_understory_ctg.LAScatalog(ctg_03)
@@ -227,7 +225,7 @@ for (path in paths) {
 }
 write.csv(data_all, paste0(dirname(path_points_01), "/01_norm_", y_thickness*200, "cm.csv"), row.names=F)
 
-###
+################################################################################
 
 paths <- list.files(path_points_02, pattern="[.]las", full.names = T)
 data_all <- c()
@@ -242,7 +240,7 @@ for (path in paths) {
 }
 write.csv(data_all, paste0(dirname(path_points_01), "/02_no_stems_", y_thickness*200, "cm.csv"), row.names=F)
 
-###
+################################################################################
 
 paths <- list.files(path_points_03, pattern="[.]las", full.names = T)
 data_all <- c()
@@ -257,7 +255,7 @@ for (path in paths) {
 }
 write.csv(data_all,paste0(dirname(path_points_01), "/03_2m_", y_thickness*200, "cm.csv"), row.names=F)
 
-###
+################################################################################
 
 paths <- list.files(path_points_04, pattern="[.]las", full.names = T)
 data_all <- c()
@@ -294,6 +292,7 @@ csv_all$source <- factor(csv_all$source, levels=c("Original Data", "+ without St
 colors <- c("Original Data" = "grey85", "+ without Stems" = "grey65",
             "+ below 2m" = "grey45", "+ filtered" = "grey25")
 
+# filter
 csv_all <- csv_all[csv_all$X < 446450, ]
 
 # plot big

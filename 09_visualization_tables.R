@@ -21,7 +21,7 @@ loadfonts(device="pdf", quiet=TRUE)
 path_vegetation <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/vegetation/Export_ODK_clean_checked_filtered_no_overlap.kml"  # input
 path_rasters    <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/rasters_2cm"  # input
 path_models     <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models_2cm_lenet5_10cv"  # input
-path_labels     <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/model_input_2cm/tls/label_lookup.csv"  # input
+path_labels     <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/model_input_2cm_standardized/tls/label_lookup.csv"  # input
 path_plots      <- "H:/Daten/Studium/2_Master/4_Semester/5_Analyse/Plots"  # output
 path_raster_val_before <- paste0(path_rasters, "/raster_samples_scaled.csv")
 path_raster_val_after  <- paste0(path_rasters, "/raster_samples_scaled_noncollinear.csv")
@@ -70,7 +70,7 @@ names(raster_val_before) <- c("Anisotropy, max", "Anisotropy, mean", "Anisotropy
                               "Curvature, max", "Curvature, mean", "Curvature, sd",
                               "Linearity, max", "Linearity, mean", "Linearity, sd",
                               "Planarity, max", "Planarity, mean", "Planarity, sd",
-                              "Sphericity max,", "Sphericity, mean", "Sphericity, sd",
+                              "Sphericity, max", "Sphericity, mean", "Sphericity, sd",
                               "nDSM", "Point Density",
                               "Reflectance, max", "Reflectance, mean", "Reflectance, sd")
 raster_val_after  <- read.csv(path_raster_val_after)
@@ -91,9 +91,9 @@ ggcorrplot(cor_matrix_before, type = "lower", outline.col = "white",
            colors = c(own_colors_named$blue, "gray90", own_colors_named$red),
            legend.title = "Spearman's\nCorrelation\nCoefficient\n", tl.cex = 14, tl.srt = 45) +
   theme(text = element_text(size=16, family="Calibri"), plot.title = element_text(hjust = 0.5),
-        legend.text = element_text(family="Calibri", size = 14),
+        legend.text = element_text(family="Calibri", size = 16),
         legend.box.spacing = unit(0.5, "cm"), legend.key.width = unit(0.5, "cm"),
-        legend.key.height = unit(1.5, "cm"))
+        legend.key.height = unit(1.5, "cm"), legend.title = element_text(family="Calibri", size = 18))
 dev.off()
 
 
@@ -104,39 +104,31 @@ ggcorrplot(cor_matrix_after, type = "lower", outline.col = "white",
            ggtheme = ggplot2::theme_light, sig.level=0.05,
            colors = c(own_colors_named$blue, "gray90", own_colors_named$red),
            legend.title = "Spearman's\nCorrelation\nCoefficient\n", tl.cex = 16, tl.srt = 45) +
-  theme(text = element_text(size=18, family="Calibri"), plot.title = element_text(hjust = 0.5),
+  theme(text = element_text(size=16, family="Calibri"), plot.title = element_text(hjust = 0.5),
         legend.text = element_text(family="Calibri", size = 16),
         legend.box.spacing = unit(0.5, "cm"), legend.key.width = unit(0.5, "cm"),
-        legend.key.height = unit(1.5, "cm"))
+        legend.key.height = unit(1.5, "cm"), legend.title = element_text(family="Calibri", size = 18))
 dev.off()
 
-# # corrplot
-# library(corrplot)
-# par(xpd = TRUE)
-# corrplot(cor_matrix_before, type="lower", method="color", tl.col="black", tl.srt=45, addgrid.col = "gray50", mar=c(0,0,5,0))
-# corrplot(cor_matrix_after, type="lower", method="color", tl.col="black", tl.srt=45, addgrid.col = "gray50", mar=c(0,0,5,0))
-# 
-# # varclus
-# library(Hmisc)
-# cluster <- varclus(as.matrix(raster_val_before), similarity = "spearman")
-# plot(cluster)
-
-tree <- hclust(as.dist(1 - cor_matrix_before**2))
 # with help of: https://stackoverflow.com/questions/68557415/dendrogram-with-labels-on-the-right-side
+tree <- hclust(as.dist(1 - cor_matrix_before**2))
 data <- ggdendro::dendro_data(tree)
+cairo_pdf(file = paste0(path_plots, "/corr_cluster.pdf"), family = "Calibri", width = 8.27, height = 5.83)
 ggplot() +
   geom_blank()+
   geom_segment(data = segment(data), aes_string(x = "x", y = "y", xend = "xend", yend = "yend")) +
   geom_hline(yintercept=0.7*0.7, col = own_colors_named$red) +
   scale_x_continuous(breaks = seq_along(data$labels$label), labels = data$labels$label, position = "top") +
-  scale_y_reverse(breaks=seq(0,1,0.25), labels=rev(seq(0,1,0.25))) +
+  scale_y_reverse(breaks=seq(0,1,0.2), labels=rev(seq(0,1,0.2))) +
   coord_flip() +
-  theme(axis.text.x = element_text(angle = angle, hjust = 1, vjust = 0.5),
-        axis.text.y = element_text(angle = angle, hjust = 1),
-        text = element_text(size=16, family="Calibri")) +
-  ylab("Spearmans rho squared") +
-  xlab("") +
-  theme_light()
+  theme_light() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, vjust = 0.5),
+        axis.text.y = element_text(angle = 0, hjust = 1),
+        text = element_text(size=16, family="Calibri"),
+        panel.grid.minor = element_blank()) +
+  ylab(expression(paste("\nSpearman's ", rho**2))) +
+  xlab("")
+dev.off()
 
 # # PCA biplot
 # pca_remains <- prcomp(raster_val_after)
@@ -317,10 +309,6 @@ ggarrange(plot_dens, plot_nDSM, plot_ref_mean, plot_ref_sd,
 dev.off()
 
 ################################################################################
-
-# i want radarplots but they are not popular :(
-
-################################################################################
 # LABELS & AREAS
 ################################################################################
 
@@ -400,20 +388,39 @@ conf_matrix_plot <- function(pred_data, fold) {
     scale_fill_manual(values = color_scale) +
     theme_light() +
     theme(text = element_text(size=14), legend.position="none")
+    
+  # make legend
+  dummy <- data.frame("x"=0:100, "y"=0:100, "z"=0:100)
+  legend <- ggplot(data = dummy, aes(x = x, y = y, alpha=z)) +
+    geom_tile(fill = own_colors_named$blue) +
+    geom_tile(aes(fill = z), alpha=0) +
+    scale_fill_gradient(high = own_colors_named$blue, low = "#e6f7fb") +
+    guides(alpha = "none") +
+    labs(fill = "Recall in\nPercent\n") +
+    theme(legend.title = element_text(family="Calibri", size = 16),
+          #legend.box.spacing = unit(0.5, "cm"),
+          legend.key.width = unit(0.5, "cm"),
+          legend.key.height = unit(1.5, "cm"),
+          legend.text = element_text(family="Calibri", size = 14))
+  legend <- get_legend(legend)
   # add title depending on fold / "all"
   if (fold != "all") {
     plot <- plot + ggtitle(paste0("Confusion Matrix, fold ", fold, "\nAccuracy ", round(conf$overall["Accuracy"]*100,2), "%"))
   } else {
     plot <- plot + ggtitle(paste0("Confusion Matrix, all folds\nAccuracy ", round(conf$overall["Accuracy"]*100,2), "%"))
   }
-  return(plot)
+  # compose
+  plot_final <- ggarrange(plot, legend, ncol = 2, nrow = 1, widths=c(6,1))#, legend.grob = legend, legend = "right")
+  return(plot_final)
 }
 
 ################################################################################
 
+path_models <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/02_testing/models_2cm_final_tls_rgb_geo/tls_rgb_geo"
+
 # get prediction paths
 csv_paths <- list.files(path_models, pattern="prediction_truth_fold.csv", recursive=TRUE, full.names=TRUE)
-csv_path <- csv_paths[1]
+csv_path <- csv_paths[1]  # TODO
 
 # load predictions & label lookup table
 pred_df <- read.csv(csv_path)
@@ -426,19 +433,20 @@ for (i in 1:nrow(label_df)) {
 }
 
 # make plots
-conf_matrix_plot(pred_df, 1)
-conf_matrix_plot(pred_df, 2)
-conf_matrix_plot(pred_df, 3)
-conf_matrix_plot(pred_df, 4)
-conf_matrix_plot(pred_df, 5)
-conf_matrix_plot(pred_df, 6)
-conf_matrix_plot(pred_df, 7)
-conf_matrix_plot(pred_df, 8)
-conf_matrix_plot(pred_df, 9)
-conf_matrix_plot(pred_df, 10)
-conf_matrix_plot(pred_df, "all")
+for (i in c(1:5, "all")) {
+  if (nchar(i) == 1) {
+    i <- as.numeric(i)
+  }
+  cairo_pdf(file = paste0(path_plots, "/conf_matrix_", i, ".pdf"), family = "Calibri", width = 8.27, height = 5.83)
+  print(conf_matrix_plot(pred_df, i))
+  dev.off()
+}
 
-# TODO: save images
+################################################################################
+# ACCURACY INSTABILITY
+################################################################################
+
+# boxplots
 
 ################################################################################
 # ACCURACY COMPARISON INPUTS
