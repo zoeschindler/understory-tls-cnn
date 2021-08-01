@@ -7,9 +7,9 @@
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/04_check_collinearity.R">04_check_collinearity.R</a>: check & remove raster collinearities ✓<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/05_combine_rasters_vegetation.R">05_combine_rasters_vegetation.R</a>: filter vegetation plots, clip rasters to vegetation plots ✓<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/06_prepare_cnn_input.R">06_prepare_cnn_input.R</a>: stack, scale, save raster clips ✓<br>
-* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/07_setup_cnn.R">07_setup_cnn.R</a>: setup CNN architecture, set up data input pipeline (in progress)<br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/07_setup_cnn.R">07_setup_cnn.R</a>: setup CNN architecture, set up data input pipeline ✓<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_train_cnn.R">08_train_cnn.R</a>: load data, train CNNs, hyperparameter optimization (in progress)<br>
-* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_experiment.R">08_experiment.R</a>: for `tfruns` & hyperparameter optimization (in progress)<br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_experiment.R">08_experiment.R</a>: for `tfruns` & hyperparameter optimization ✓<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/09_visualization_tables.R ">09_visualization_tables.R</a>: create result visualizations (in progress)<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/09_filter_plot.R">09_filter_plot.R</a>: visualization of the understory filtering (in progress)<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/09_prediction_map.R">09_prediction_map.R</a>: visualize prediction results on one complete area (in progress)<br>
