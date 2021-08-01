@@ -143,7 +143,7 @@ shapefile(polys, paste0(path_tiles, ".shp"), overwrite = TRUE)
 # MAP
 ################################################################################
 
-# load oackages
+# load packages
 library(ggmap)
 library(rgdal)
 library(ggplot2)
