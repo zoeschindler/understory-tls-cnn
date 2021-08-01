@@ -7,6 +7,7 @@
 # load packages
 library(raster)
 library(sf)
+library(sp)
 library(keras)
 library(meteo)  # for tiling
 
@@ -19,6 +20,7 @@ path_model   <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/models_2cm/tls_rgb
 path_area    <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/sites/convex/area_polygons.shp"  # input
 path_values  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/clips_2cm/raster_values_labels_unscaled.csv"  # input
 path_labels  <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/model_input_2cm_standardized/tls/label_lookup.csv"  # input
+path_plots   <- "H:/Daten/Studium/2_Master/4_Semester/5_Analyse/Plots"  # output
 path_tiles   <- paste0(path_rasters, "/tiles")  # output
 
 # set parameters
@@ -95,12 +97,11 @@ rm(raster_list)
 
 # make tiles
 agg <- aggregate(raster_stack[[1]], n_pixels)
-polys <- as(agg, 'SpatialPolygons')  # i can export this to shp!
+polys <- as(agg, 'SpatialPolygons')
 tiles <- lapply(seq_along(polys), function(i) crop(raster_stack, polys[i]))
 
 # save tiles
 saveRDS(tiles, file=paste0(path_tiles, ".rds"))
-shapefile(polys, paste0(path_tiles, ".shp"))
 
 ################################################################################
 # MAKE PREDICTIONS
@@ -117,17 +118,59 @@ for (i in 1:length(tiles)) {
 img_array[is.na(img_array)] <- 0
 
 # load model
+#path_model <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/02_testing/models_2cm_final_tls_rgb_geo/tls_rgb_geo/best_of_fold_3.h5"
 model <- load_model_hdf5(path_model)
 
 # predict
 preds <- model %>% predict(img_array)
+preds <- apply(preds, 1, which.max)
 
-# get class with highest chance (+ threshold?)
+# replace numeric label with text label
+label_lookup <- read.csv(path_labels)
+for (i in 1:nrow(label_lookup)) {
+  preds[preds == label_lookup$new[i]] <- label_lookup$old[[i]]
+}
 
-# save predictions as shapefile, add label
+# save as shapefile
+polys <- lapply(tiles, function(x) as(extent(x), "SpatialPolygons"))
+polys <- do.call(bind, polys) 
+polys <- SpatialPolygonsDataFrame(Sr=polys, data=data.frame(id = 1:length(polys),
+                                                            prediction = preds))
+crs(polys) <- CRS(crs_raster_las)
+shapefile(polys, paste0(path_tiles, ".shp"), overwrite = TRUE)
 
 ################################################################################
-# MAP ?
+# MAP
 ################################################################################
+
+# load oackages
+library(ggmap)
+library(rgdal)
+library(ggplot2)
+library(extrafont)
+loadfonts(device="pdf", quiet=TRUE)
+
+# load & prepare data
+shapefile <- readOGR(paste0(path_tiles, ".shp"))
+shapefile[is.na(shapefile$prediction),]
+df <- tidy(shapefile, region = "id")
+shapefile$id <- rownames(shapefile@data)
+df <- left_join(df, shapefile@data, by = "id")
+df <- df[!is.na(df$prediction),]
+
+# make map
+cairo_pdf(file = paste0(path_plots, "/prediction_map.pdf"), family = "Calibri", width = 8.27, height = 5.83)
+ggplot() +
+  geom_polygon(data = df, aes(x = long, y = lat, group = group, fill = prediction), color = NA) +
+  scale_fill_manual(values=own_colors, "Predicted\nGround Cover Class",
+                    labels = c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce")) +
+  theme_light() +
+  coord_equal() +
+  ylim(c(5379630, 5379665)) +
+  xlim(c(447025, 447075)) +
+  ylab("Northing\n") +
+  xlab("\nEasting") +
+  theme(text = element_text(family="Calibri", size=16))
+dev.off()
 
 ################################################################################
