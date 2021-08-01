@@ -8,11 +8,13 @@
 # FLAGS
 ################################################################################
 
-FLAGS <- flags(flag_numeric("learning_rate", 5e-5),
-               flag_integer("epochs", 200),
-               flag_integer("batch_size", 32),
-               flag_numeric("dropout", 0.5),
-               flag_numeric("l2_regularizer", 0.01))
+FLAGS <- flags(
+  flag_numeric("learning_rate", 5e-5),
+  flag_integer("epochs", 200),
+  flag_integer("batch_size", 32),
+  flag_numeric("dropout", 0.5),
+  flag_numeric("l2_regularizer", 0.01)
+)
 
 ################################################################################
 # MODEL
@@ -23,7 +25,8 @@ model <- get_lenet5(
   n_bands = n_bands,
   n_classes = n_classes,
   dropout = FLAGS$dropout,
-  l2_regularizer = FLAGS$l2_regularizer)
+  l2_regularizer = FLAGS$l2_regularizer
+)
 
 ################################################################################
 # COMPILE
@@ -64,14 +67,16 @@ if (FLAGS$batch_size == 32) {
 ################################################################################
 
 check_create_dir(paste0(path_models, "/all"))
-name <- paste0("lr_", FLAGS$learning_rate, "_ep_", FLAGS$epochs, "_bs_",
-               FLAGS$batch_size, "_dp_", FLAGS$dropout, "_l2_", FLAGS$l2_regularizer)
+name <- paste0(
+  "lr_", FLAGS$learning_rate, "_ep_", FLAGS$epochs, "_bs_",
+  FLAGS$batch_size, "_dp_", FLAGS$dropout, "_l2_", FLAGS$l2_regularizer
+)
 model %>% save_model_hdf5(paste0(path_models, "/all/fold_", fold, "_", name, ".h5"))
 
 ################################################################################
 # EVALUATE
 ################################################################################
 
-results <- model %>% evaluate_generator(balanced$data_test, steps=balanced$length_test)
+results <- model %>% evaluate_generator(balanced$data_test, steps = balanced$length_test)
 
 ################################################################################

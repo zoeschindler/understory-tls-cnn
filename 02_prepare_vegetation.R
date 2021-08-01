@@ -13,12 +13,13 @@ library(jpeg)
 library(raster)
 
 # set path
-area_dir <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/sites/convex"  # output
-home_dir <- "C:/Users/Zoe/Documents/understory_classification/4_Daten/vegetation"  # input & output
+basedir <- "C:/Users/Zoe/Documents/understory_classification"
+area_dir <- paste0(basedir, "/4_Daten/sites/convex") # output
+home_dir <- paste0(basedir, "/4_Daten/vegetation") # input & output
 setwd(home_dir)
 
 # clean the data?
-clean = TRUE
+clean <- TRUE
 if (clean) {
   file_name <- "Export_ODK_clean"
 } else {
@@ -44,24 +45,24 @@ check_create_dir <- function(path) {
 # READ JSON
 ################################################################################
 
-json_to_df <- function (path) {
+json_to_df <- function(path) {
   full_data <- fromJSON(path)
   final <- data.frame()
-  for(d in 1:nrow(full_data)){
-    data <- full_data[d,]
+  for (d in 1:nrow(full_data)) {
+    data <- full_data[d, ]
     # extract the image subtable
     img <- data$collect_ground_vegetation[[1]]$ground_img
     # exclude the image subtable
-    data$collect_ground_vegetation[[1]] <- data$collect_ground_vegetation[[1]][names(data$collect_ground_vegetation[[1]]) != 'ground_img']
+    data$collect_ground_vegetation[[1]] <- data$collect_ground_vegetation[[1]][names(data$collect_ground_vegetation[[1]]) != "ground_img"]
     # get the start and end of the questionaire (metadata)
-    meta <- data[names(data) != 'collect_ground_vegetation']
+    meta <- data[names(data) != "collect_ground_vegetation"]
     # get the groundsamples
     ground_veg <- data$collect_ground_vegetation[[1]]
     # put it all together
     final <- rbind(final, cbind(cbind(ground_veg, img), meta))
   }
   # replace "other" with description
-  final$veg_type[final$veg_type == 'other'] <- final$veg_other_text[final$veg_type == 'other']
+  final$veg_type[final$veg_type == "other"] <- final$veg_other_text[final$veg_type == "other"]
   # delete unnecessary column
   final$veg_other_text <- NULL
   # set plot_ID
@@ -83,8 +84,8 @@ add_IDs <- function(df) {
 }
 
 # execute function
-part1 <- json_to_df('Ground_Vegetation_Survey_0_1_results.json')
-part2 <- json_to_df('Ground_Vegetation_Survey_0_2_results.json')
+part1 <- json_to_df("Ground_Vegetation_Survey_0_1_results.json")
+part2 <- json_to_df("Ground_Vegetation_Survey_0_2_results.json")
 final <- add_IDs(rbind(part1, part2))
 rm(part1, part2)
 
@@ -96,20 +97,20 @@ if (clean) {
   # clean up data
   summary(as.factor(final$veg_type))
   # deleting points
-  final <- final[substr(final$veg_type,1,8) != "Endpunkt",] # end point
-  final <- final[final$veg_type != "Schreibtisch",] # test point
-  final <- final[final$veg_type != "Stechpalme",] # only once + too small
-  final <- final[final$veg_ID != 940,]  # way to far away
-  final <- final[final$veg_ID != 308,]  # way to far away
-  final <- final[final$veg_ID != 292,]  # way to far away
+  final <- final[substr(final$veg_type, 1, 8) != "Endpunkt", ] # end point
+  final <- final[final$veg_type != "Schreibtisch", ] # test point
+  final <- final[final$veg_type != "Stechpalme", ] # only once + too small
+  final <- final[final$veg_ID != 940, ] # way to far away
+  final <- final[final$veg_ID != 308, ] # way to far away
+  final <- final[final$veg_ID != 292, ] # way to far away
   # renaming points
-  final$veg_type[final$veg_type=="fir"] <- "spruce" # too dumb for fir / spruce
-  final$veg_type[final$veg_type=="sprouce"] <- "spruce" # typo
-  final$veg_type[final$veg_type=="Totholz"] <- "dead_wood" # German to English
-  final$veg_type[final$veg_type=="Gras"] <- "grass"
-  final$veg_type[final$veg_type=="gras"] <- "grass"
-  final$veg_type[final$veg_type=="Boden"] <- "forest_floor"
-  final$veg_type[final$veg_type=="Boden?"] <- "forest_floor"
+  final$veg_type[final$veg_type == "fir"] <- "spruce" # too dumb for fir / spruce
+  final$veg_type[final$veg_type == "sprouce"] <- "spruce" # typo
+  final$veg_type[final$veg_type == "Totholz"] <- "dead_wood" # German to English
+  final$veg_type[final$veg_type == "Gras"] <- "grass"
+  final$veg_type[final$veg_type == "gras"] <- "grass"
+  final$veg_type[final$veg_type == "Boden"] <- "forest_floor"
+  final$veg_type[final$veg_type == "Boden?"] <- "forest_floor"
   # check remaining types
   summary(as.factor(final$veg_type))
 }
@@ -118,28 +119,28 @@ if (clean) {
 # CREATE SITE SHAPES
 ################################################################################
 
-if (clean) {  # otherwise, really wrong point are included
+if (clean) { # otherwise, really wrong point are included
   check_create_dir(area_dir)
-  final_spatial <- st_as_sf(final, coords = c('veg_loc:Longitude', 'veg_loc:Latitude'), crs = 4326)
+  final_spatial <- st_as_sf(final, coords = c("veg_loc:Longitude", "veg_loc:Latitude"), crs = 4326)
   final_spatial <- st_transform(final_spatial, 25832)
   poly_list <- list()
   # loop through all unique plot IDs
   plot_IDs <- unique(final_spatial$plot_ID)
   for (plot_ID in plot_IDs) {
     # select all points belonging to the plot
-    points <- final_spatial[final_spatial$plot_ID == plot_ID,]
+    points <- final_spatial[final_spatial$plot_ID == plot_ID, ]
     points_coords <- st_coordinates(points)
     # calculate convex hull
     plot_poly <- chull(st_coordinates(points))
-    plot_poly <- points_coords[c(plot_poly, plot_poly[1]),]  # closed polygon
+    plot_poly <- points_coords[c(plot_poly, plot_poly[1]), ] # closed polygon
     # convert to spatial polygon
-    poly_list[[plot_ID]] <- Polygons(list(Polygon(plot_poly)), ID=plot_ID)
+    poly_list[[plot_ID]] <- Polygons(list(Polygon(plot_poly)), ID = plot_ID)
   }
   # combine single polygons
   plot_poly_all <- SpatialPolygons(poly_list)
   crs(plot_poly_all) <- CRS("+init=EPSG:25832")
   # add buffer
-  plot_poly_all <- buffer(plot_poly_all, width=2, dissolve=FALSE)
+  plot_poly_all <- buffer(plot_poly_all, width = 2, dissolve = FALSE)
   # save to shapefile
   shapefile(plot_poly_all, paste0(area_dir, "/area_polygons.shp"))
 }
@@ -162,7 +163,7 @@ for (i in 1:nrow(final)) {
     if (file.exists(paste0("images/", final$filename[i]))) {
       # print("already exists!")
     } else {
-      download.file(final$url[i], paste0("images/", final$filename[i]), mode = 'wb')
+      download.file(final$url[i], paste0("images/", final$filename[i]), mode = "wb")
     }
   }
 }
@@ -177,15 +178,15 @@ final_sp$name <- final_sp$veg_type # for the kmls
 final_sp$description <- paste0("plot_ID: ", final_sp$plot_ID, ", veg_ID: ", final_sp$veg_ID) # for the kmls
 
 # csv
-final_sp_trans_csv <- st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude', 'veg_loc:Altitude'), crs = 4326)
+final_sp_trans_csv <- st_as_sf(final_sp, coords = c("veg_loc:Longitude", "veg_loc:Latitude", "veg_loc:Altitude"), crs = 4326)
 final_sp_trans_csv <- st_transform(final_sp_trans_csv, 25832)
 final_sp_trans_csv <- cbind(as.data.frame(st_coordinates(final_sp_trans_csv)), as.data.frame(final_sp_trans_csv))
-final_sp_trans_csv <- final_sp_trans_csv[1:(ncol(final_sp_trans_csv)-3)] # remove geometry & name & description
+final_sp_trans_csv <- final_sp_trans_csv[1:(ncol(final_sp_trans_csv) - 3)] # remove geometry & name & description
 st_write(final_sp_trans_csv, paste0(file_name, ".csv"), delete_layer = T)
 
 # 2D kml
-final_sp_trans_xy <- st_as_sf(final_sp, coords = c('veg_loc:Longitude', 'veg_loc:Latitude'), crs = 4326)
-#final_sp_trans_xy <- st_transform(final_sp_trans_xyz, 25832) # wird eh als WGS84 gespeichert
+final_sp_trans_xy <- st_as_sf(final_sp, coords = c("veg_loc:Longitude", "veg_loc:Latitude"), crs = 4326)
+# final_sp_trans_xy <- st_transform(final_sp_trans_xyz, 25832) # wird eh als WGS84 gespeichert
 st_write(final_sp_trans_xy, paste0(file_name, ".kml"), delete_layer = T)
 
 ################################################################################
@@ -205,7 +206,7 @@ st_write(final_sp_trans_xy, paste0(file_name, ".kml"), delete_layer = T)
 # # load data
 # df <- read.csv("Export_ODK_clean.csv")
 # unique(df$veg_type)
-# 
+#
 # # loop through all points, show image, ask if label is right (I did this 3x)
 # plots <- c()
 # label <- c()
@@ -226,15 +227,15 @@ st_write(final_sp_trans_xy, paste0(file_name, ".kml"), delete_layer = T)
 #   plots <- c(plots, df$veg_ID[i])
 #   label <- c(label, input)
 # }
-# 
+#
 # # save in data frame
 # results <- data.frame("plot_ID"=plots, "label"=label)
-# 
+#
 # # look at & save wrongly labeled data
 # wrong_ID <- results$plot_ID[results$label!="y"]
 # wrong_df <- df[df$veg_ID %in% wrong_ID,]
 # write.csv(wrong_df, "Export_ODK_clean_wrong.csv", row.names=FALSE)
-# 
+#
 # # combine marked plots from several runs
 # df1 <- read.csv("Export_ODK_clean_wrong1.csv")[1:19]
 # df2 <- read.csv("Export_ODK_clean_wrong2.csv")[1:19]
@@ -242,7 +243,7 @@ st_write(final_sp_trans_xy, paste0(file_name, ".kml"), delete_layer = T)
 # df_all <- rbind(df1, df2, df3)
 # df_all <- df_all[!duplicated(df_all),]
 # write.csv(df_all, "Export_ODK_clean_wrong_all.csv", row.names=FALSE)
-# 
+#
 # # relabel into mixed / too_small / check_cloud / correct / below spruce
 # plots <- c()
 # label <- c()
@@ -263,7 +264,7 @@ st_write(final_sp_trans_xy, paste0(file_name, ".kml"), delete_layer = T)
 #   plots <- c(plots, df_all$veg_ID[i])
 #   label <- c(label, input)
 # }
-# 
+#
 # # save in data frame & csv
 # results <- data.frame("plot_ID"=plots, "label"=label)
 # write.csv(results, "Export_ODK_clean_wrong_labels.csv", row.names=FALSE)
@@ -273,21 +274,21 @@ st_write(final_sp_trans_xy, paste0(file_name, ".kml"), delete_layer = T)
 if (clean) {
   # read in csv with IDs and new labels of wrongly labeled points
   results <- read.csv("Export_ODK_clean_wrong_labels.csv")
-  
+
   # plots 258/726/917/937: point clouds checked due to differences label/photo
   results$label[results$plot_ID == 258] <- "spruce"
   results$label[results$plot_ID == 726] <- "blueberry"
   results$label[results$plot_ID == 917] <- "spruce"
   results$label[results$plot_ID == 937] <- "mixed"
-  
+
   # delete "correct"
-  results <- results[results$label!="correct",]
+  results <- results[results$label != "correct", ]
   delete_these <- results$plot_ID[results$label == "too_small" | results$label == "mixed"]
-  relabel_these <- results[results$label != "too_small" & results$label != "mixed",]
-  
+  relabel_these <- results[results$label != "too_small" & results$label != "mixed", ]
+
   # change & save csv
   new_csv <- read.csv("Export_ODK_clean.csv")
-  new_csv <- new_csv[!(new_csv$veg_ID %in% delete_these),]
+  new_csv <- new_csv[!(new_csv$veg_ID %in% delete_these), ]
   for (i in 1:nrow(relabel_these)) {
     plot_id <- relabel_these$plot_ID[i]
     new_label <- relabel_these$label[i]
@@ -296,7 +297,7 @@ if (clean) {
   # change "unter kleinen Fichten" to "spruce"
   new_csv$veg_type[grepl("unter kleinen Fichten", new_csv$veg_type)] <- "spruce"
   write.csv(new_csv, "Export_ODK_clean_checked.csv")
-  
+
   # change & save kml
   # more complicated because the ID is part of the description column
   new_kml <- st_read("Export_ODK_clean.kml")
@@ -311,7 +312,7 @@ if (clean) {
       new_kml$Name[i] <- new_label
     }
   }
-  new_kml <- new_kml[-delete_indices,]
+  new_kml <- new_kml[-delete_indices, ]
   # change "unter kleinen Fichten" to "spruce"
   new_kml$Name[grepl("unter kleinen Fichten", new_kml$Name)] <- "spruce"
   st_write(new_kml, "Export_ODK_clean_checked.kml", delete_layer = T)
