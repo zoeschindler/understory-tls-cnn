@@ -20,9 +20,9 @@ tile_size <- 0.5
 # set paths
 basedir <- "C:/Users/Zoe/Documents/understory_classification"
 path_experiment <- paste0(basedir, "/5_Analyse/08_experiment.R") # input
-path_clips <- paste0(basedir, "/4_Daten/model_input_", resolution * 100, "cm_standardized/", input_type) # input
-path_tfruns <- paste0(basedir, "/4_Daten/tfruns_", resolution * 100, "cm/", input_type) # output
-path_models <- paste0(basedir, "/4_Daten/models_", resolution * 100, "cm/", input_type) # output
+path_clips      <- paste0(basedir, "/4_Daten/model_input_", resolution * 100, "cm_standardized/", input_type) # input
+path_tfruns     <- paste0(basedir, "/4_Daten/tfruns_", resolution * 100, "cm/", input_type) # output
+path_models     <- paste0(basedir, "/4_Daten/models_", resolution * 100, "cm/", input_type) # output
 
 # create folders
 check_create_dir(dirname(path_tfruns))
@@ -191,7 +191,6 @@ best_runs_data$flag_learning_rate[best_runs_data$flag_learning_rate == 0] <- 5e-
 
 # prepare empty variables
 predictions <- c()
-accuracy_old_new <- c()
 
 # loop through folds
 for (row in 1:nrow(best_runs_data)) {
@@ -224,13 +223,6 @@ for (row in 1:nrow(best_runs_data)) {
   preds_test <- apply(preds_test, 1, which.max)
   pred_df <- data.frame("predictions" = preds_test, "truth" = label_test, "fold" = best_runs_data$fold[row])
   predictions <- rbind(predictions, pred_df)
-
-  # check if accuracy the same (should be)
-  eval_acc <- model_old %>% evaluate_generator(balanced$data_test, steps = balanced$length_test)
-  accuracy_old_new <- rbind(accuracy_old_new, data.frame(
-    "old" = best_runs_data$eval_accuracy[row],
-    "new" = eval_acc["accuracy"]
-  ))
 }
 
 # save
