@@ -20,12 +20,12 @@ loadfonts(device = "pdf", quiet = TRUE)
 # set paths
 basedir <- "H:/Daten/Studium/2_Master/4_Semester"
 path_vegetation <- paste0(basedir, "/4_Daten/vegetation/Export_ODK_clean_checked_filtered_no_overlap.kml") # input
-path_rasters <- paste0(basedir, "/4_Daten/rasters_2cm") # input
-path_models <- paste0(basedir, "/4_Daten/02_testing/models_2cm") # input
-path_labels <- paste0(basedir, "/4_Daten/model_input_2cm_standardized/tls/label_lookup.csv") # input
-path_plots <- paste0(basedir, "/5_Analyse/Plots") # output
+path_rasters    <- paste0(basedir, "/4_Daten/rasters_2cm") # input
+path_models     <- paste0(basedir, "/4_Daten/02_testing/models_2cm") # input
+path_labels     <- paste0(basedir, "/4_Daten/model_input_2cm_standardized/tls/label_lookup.csv") # input
+path_plots      <- paste0(basedir, "/5_Analyse/Plots") # output
 path_raster_val_before <- paste0(path_rasters, "/raster_samples_scaled.csv") # input
-path_raster_val_after <- paste0(path_rasters, "/raster_samples_scaled_noncollinear.csv") # input
+path_raster_val_after  <- paste0(path_rasters, "/raster_samples_scaled_noncollinear.csv") # input
 
 # set parameters
 crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +vunits=m +no_defs"
