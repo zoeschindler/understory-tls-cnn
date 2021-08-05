@@ -20,12 +20,12 @@ loadfonts(device = "pdf", quiet = TRUE)
 # set paths
 basedir <- "H:/Daten/Studium/2_Master/4_Semester"
 path_vegetation <- paste0(basedir, "/4_Daten/vegetation/Export_ODK_clean_checked_filtered_no_overlap.kml") # input
-path_rasters    <- paste0(basedir, "/4_Daten/rasters_2cm") # input
-path_models     <- paste0(basedir, "/4_Daten/models_2cm_lenet5_10cv") # input
-path_labels     <- paste0(basedir, "/4_Daten/model_input_2cm_standardized/tls/label_lookup.csv") # input
-path_plots      <- paste0(basedir, "/5_Analyse/Plots") # output
-path_raster_val_before <- paste0(path_rasters, "/raster_samples_scaled.csv")
-path_raster_val_after <- paste0(path_rasters, "/raster_samples_scaled_noncollinear.csv")
+path_rasters <- paste0(basedir, "/4_Daten/rasters_2cm") # input
+path_models <- paste0(basedir, "/4_Daten/02_testing/models_2cm") # input
+path_labels <- paste0(basedir, "/4_Daten/model_input_2cm_standardized/tls/label_lookup.csv") # input
+path_plots <- paste0(basedir, "/5_Analyse/Plots") # output
+path_raster_val_before <- paste0(path_rasters, "/raster_samples_scaled.csv") # input
+path_raster_val_after <- paste0(path_rasters, "/raster_samples_scaled_noncollinear.csv") # input
 
 # set parameters
 crs_raster_las <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +vunits=m +no_defs"
@@ -45,10 +45,6 @@ own_colors_named <- list(
   pink = "#ff8b94",
   bright_green = "#cbe885"
 )
-own_colors <- c(
-  own_colors_named$blue, own_colors_named$red, own_colors_named$yellow,
-  own_colors_named$bright_green, own_colors_named$green
-)
 
 # # use custom color palette, muted
 # own_colors_named <- list(blue = "#70ABC2",
@@ -58,14 +54,27 @@ own_colors <- c(
 #                          red = "#E9795D",
 #                          purple = "#B9A4C9",
 #                          green = "#A3CC8E")
-# own_colors <- c(own_colors_named$blue, own_colors_named$red, own_colors_named$orange,
-#                 own_colors_named$yellow, own_colors_named$green)
+
+# color scale for classes
+color_scale_class <- c(
+  own_colors_named$blue, own_colors_named$red, own_colors_named$yellow,
+  own_colors_named$bright_green, own_colors_named$green
+)
+
+# color scale for input data type
+color_scale_type <- c(
+  "tls" = own_colors_named$yellow,
+  "tls_geo" = own_colors_named$green,
+  "tls_rgb" = own_colors_named$blue,
+  "tls_rgb_geo" = own_colors_named$red
+)
 
 ################################################################################
 # RAW POINT CLOUDS
 ################################################################################
 
 # maybe better in CC
+# does this even matter
 
 ################################################################################
 # CLUSTERS & PCA
@@ -96,7 +105,10 @@ cor_matrix_after <- cor(raster_val_after, method = "spearman")
 p_matrix_after <- cor_pmat(raster_val_after)
 
 # corr plot before
-cairo_pdf(file = paste0(path_plots, "/corr_before.pdf"), family = "Calibri", width = 8.27, height = 5.83)
+cairo_pdf(
+  file = paste0(path_plots, "/corr_before.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
 ggcorrplot(cor_matrix_before,
   type = "lower", outline.col = "white",
   ggtheme = ggplot2::theme_light, sig.level = 0.05,
@@ -104,16 +116,22 @@ ggcorrplot(cor_matrix_before,
   legend.title = "Spearman's\nCorrelation\nCoefficient\n", tl.cex = 14, tl.srt = 45
 ) +
   theme(
-    text = element_text(size = 16, family = "Calibri"), plot.title = element_text(hjust = 0.5),
+    text = element_text(size = 16, family = "Calibri"),
+    plot.title = element_text(hjust = 0.5),
     legend.text = element_text(family = "Calibri", size = 16),
-    legend.box.spacing = unit(0.5, "cm"), legend.key.width = unit(0.5, "cm"),
-    legend.key.height = unit(1.5, "cm"), legend.title = element_text(family = "Calibri", size = 18)
+    legend.box.spacing = unit(0.5, "cm"),
+    legend.key.width = unit(0.5, "cm"),
+    legend.key.height = unit(1.5, "cm"),
+    legend.title = element_text(family = "Calibri", size = 18)
   )
 dev.off()
 
 
 # corr plot after
-cairo_pdf(file = paste0(path_plots, "/corr_after.pdf"), family = "Calibri", width = 8.27, height = 5.83)
+cairo_pdf(
+  file = paste0(path_plots, "/corr_after.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
 ggcorrplot(cor_matrix_after,
   type = "lower", outline.col = "white",
   lab = TRUE, lab_col = "grey25", lab_size = 5,
@@ -124,15 +142,20 @@ ggcorrplot(cor_matrix_after,
   theme(
     text = element_text(size = 16, family = "Calibri"), plot.title = element_text(hjust = 0.5),
     legend.text = element_text(family = "Calibri", size = 16),
-    legend.box.spacing = unit(0.5, "cm"), legend.key.width = unit(0.5, "cm"),
-    legend.key.height = unit(1.5, "cm"), legend.title = element_text(family = "Calibri", size = 18)
+    legend.box.spacing = unit(0.5, "cm"),
+    legend.key.width = unit(0.5, "cm"),
+    legend.key.height = unit(1.5, "cm"),
+    legend.title = element_text(family = "Calibri", size = 18)
   )
 dev.off()
 
 # with help of: https://stackoverflow.com/questions/68557415/dendrogram-with-labels-on-the-right-side
 tree <- hclust(as.dist(1 - cor_matrix_before**2))
 data <- ggdendro::dendro_data(tree)
-cairo_pdf(file = paste0(path_plots, "/corr_cluster.pdf"), family = "Calibri", width = 8.27, height = 5.83)
+cairo_pdf(
+  file = paste0(path_plots, "/corr_cluster.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
 ggplot() +
   geom_blank() +
   geom_segment(data = segment(data), aes_string(x = "x", y = "y", xend = "xend", yend = "yend")) +
@@ -150,22 +173,6 @@ ggplot() +
   ylab(expression(paste("\nSpearman's ", rho**2))) +
   xlab("")
 dev.off()
-
-# # PCA biplot
-# pca_remains <- prcomp(raster_val_after)
-# biplot(pca_remains, cex=c(0.5,1), xlim = c(-0.08, 0.08), ylim = c(-0.08, 0.08), col=c("black","deeppink3"))
-#
-# # PCA biplot
-# library(ggbiplot)
-# ggbiplot(pca_remains, obs.scale = 2, var.scale = 2, alpha=0.1, labels.size = 10, varname.size=5, varname.adjust = 1.5)
-#   theme_light(base_size=14) +
-#   theme(legend.direction = 'horizontal', legend.position = 'top')
-#
-#   # PCA biplot
-# library(AMR)
-# ggplot_pca(pca_remains, arrows_colour = "red", arrows_size = 1,
-#            arrows_textsize = 5, points_alpha = 0.1, arrows_textangled = T) +
-#   theme_light()
 
 ################################################################################
 # RASTER STATISTICS & LABELS
@@ -243,6 +250,7 @@ if (FALSE) {
 ################################################################################
 
 raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log = FALSE) {
+  # create plots
   if (abbreviate) {
     label_vector <- c("B", "D", "F", "M", "S")
   } else {
@@ -256,7 +264,7 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log 
       ylab("") +
       ggtitle(y_label) +
       scale_x_discrete(labels = label_vector) +
-      scale_fill_manual(values = own_colors) +
+      scale_fill_manual(values = color_scale_class) +
       theme_light() +
       theme(
         text = element_text(size = 14, family = "Calibri"), legend.position = "none",
@@ -272,7 +280,7 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log 
       ylab("") +
       ggtitle(y_label) +
       scale_x_discrete(labels = label_vector) +
-      scale_fill_manual(values = own_colors) +
+      scale_fill_manual(values = color_scale_class) +
       theme_light() +
       theme(
         text = element_text(size = 14, family = "Calibri"), legend.position = "none",
@@ -288,10 +296,11 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log 
 }
 
 raster_legend <- function(data, pos) {
+  # create legend
   label_vector <- c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce")
   plot <- ggplot(data[data$type == "nDSM", ], aes(x = label, y = values)) +
     geom_boxplot(aes(fill = label)) +
-    scale_fill_manual(values = own_colors, name = "Vegetation Label", labels = label_vector) +
+    scale_fill_manual(values = color_scale_type, name = "Vegetation Label", labels = label_vector) +
     theme_light() +
     theme(text = element_text(size = 16, family = "Calibri"), legend.position = pos)
   legend <- get_legend(plot)
@@ -306,26 +315,32 @@ raster_vals <- na.omit(raster_vals)
 
 # make legend
 plot_legend_block <- raster_legend(raster_vals, "right")
-plot_legend_line  <- raster_legend(raster_vals, "bottom")
+plot_legend_line <- raster_legend(raster_vals, "bottom")
 
 # all rgb values (R, G, B)
-cairo_pdf(file = paste0(path_plots, "/rgb_raster_stats.pdf"), family = "Calibri", width = 8.27, height = 2.93)
-plot_red   <- raster_stat_plot(raster_vals, "Red", "R")
+cairo_pdf(
+  file = paste0(path_plots, "/rgb_raster_stats.pdf"),
+  family = "Calibri", width = 8.27, height = 2.93
+)
+plot_red <- raster_stat_plot(raster_vals, "Red", "R")
 plot_green <- raster_stat_plot(raster_vals, "Green", "G")
-plot_blue  <- raster_stat_plot(raster_vals, "Blue", "B")
+plot_blue <- raster_stat_plot(raster_vals, "Blue", "B")
 ggarrange(plot_red, plot_green, plot_blue,
   ncol = 3, nrow = 1, legend.grob = plot_legend_line, legend = "bottom"
 )
 dev.off()
 
 # all geometry values (anisotropy_max, curvature_max, linearity_max, linearity_sd, planarity_mean, planarity_sd)
-cairo_pdf(file = paste0(path_plots, "/geo_raster_stats.pdf"), family = "Calibri", width = 8.27, height = 5.83)
+cairo_pdf(
+  file = paste0(path_plots, "/geo_raster_stats.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
 plot_aniso_max <- raster_stat_plot(raster_vals, "Anisotropy, max", "anisotropy_max")
-plot_curv_max  <- raster_stat_plot(raster_vals, "Curvature, max", "curvature_max")
+plot_curv_max <- raster_stat_plot(raster_vals, "Curvature, max", "curvature_max")
 plot_linea_max <- raster_stat_plot(raster_vals, "Linearity, max", "linearity_max")
-plot_linea_sd  <- raster_stat_plot(raster_vals, "Linearity, sd", "linearity_sd")
+plot_linea_sd <- raster_stat_plot(raster_vals, "Linearity, sd", "linearity_sd")
 plot_plan_mean <- raster_stat_plot(raster_vals, "Planarity, mean", "planarity_mean")
-plot_plan_sd   <- raster_stat_plot(raster_vals, "Planarity, sd", "planarity_sd")
+plot_plan_sd <- raster_stat_plot(raster_vals, "Planarity, sd", "planarity_sd")
 ggarrange(plot_aniso_max, plot_curv_max, plot_linea_max,
   plot_linea_sd, plot_plan_mean, plot_plan_sd,
   ncol = 3, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
@@ -335,10 +350,10 @@ dev.off()
 # all tls values (nDSM, point_density, reflectance_mean, reflectance_sd)
 # point density without 0s, because logarithmic scale hates that
 cairo_pdf(file = paste0(path_plots, "/tls_raster_stats.pdf"), family = "Calibri", width = 8.27, height = 5.83)
-plot_dens     <- raster_stat_plot(raster_vals, "Point Density", "point_density", log = TRUE)
-plot_nDSM     <- raster_stat_plot(raster_vals, "nDSM Height", "nDSM")
+plot_dens <- raster_stat_plot(raster_vals, "Point Density", "point_density", log = TRUE)
+plot_nDSM <- raster_stat_plot(raster_vals, "nDSM Height", "nDSM")
 plot_ref_mean <- raster_stat_plot(raster_vals, "Reflectance, mean", "reflectance_mean")
-plot_ref_sd   <- raster_stat_plot(raster_vals, "Reflectance, sd", "reflectance_sd")
+plot_ref_sd <- raster_stat_plot(raster_vals, "Reflectance, sd", "reflectance_sd")
 ggarrange(plot_dens, plot_nDSM, plot_ref_mean, plot_ref_sd,
   ncol = 2, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
 )
@@ -380,13 +395,12 @@ for (class in unique(final_points$Name)) {
 # barplots (with CI) / boxplots - hyperparameters & accuracy & loss
 
 # regression between val_acc and val_loss
-# (good if val_acc was used for picking network)
 
 ################################################################################
 # CONFUSION MATRICES
 ################################################################################
 
-conf_matrix_plot <- function(pred_data, fold) {
+conf_matrix_plot <- function(pred_data, fold, name) {
   # get data depending on fold / "all"
   if (fold != "all") {
     pred_data <- pred_data[pred_data$fold == fold, ]
@@ -429,8 +443,7 @@ conf_matrix_plot <- function(pred_data, fold) {
     scale_y_discrete(labels = rev(c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce"))) +
     scale_fill_manual(values = color_scale) +
     theme_light() +
-    theme(text = element_text(size = 14), legend.position = "none")
-
+    theme(text = element_text(size = 14, family = "Calibri"), legend.position = "none")
   # make legend
   dummy <- data.frame("x" = 0:100, "y" = 0:100, "z" = 0:100)
   legend <- ggplot(data = dummy, aes(x = x, y = y, alpha = z)) +
@@ -438,7 +451,7 @@ conf_matrix_plot <- function(pred_data, fold) {
     geom_tile(aes(fill = z), alpha = 0) +
     scale_fill_gradient(high = own_colors_named$blue, low = "#e6f7fb") +
     guides(alpha = "none") +
-    labs(fill = "Recall in\nPercent\n") +
+    labs(fill = "Fraction of\nReference\nin Percent\n") +
     theme(
       legend.title = element_text(family = "Calibri", size = 16),
       # legend.box.spacing = unit(0.5, "cm"),
@@ -449,9 +462,9 @@ conf_matrix_plot <- function(pred_data, fold) {
   legend <- get_legend(legend)
   # add title depending on fold / "all"
   if (fold != "all") {
-    plot <- plot + ggtitle(paste0("Confusion Matrix, fold ", fold, "\nAccuracy ", round(conf$overall["Accuracy"] * 100, 2), "%"))
+    plot <- plot + ggtitle(paste0("Confusion Matrix, ", name, ", fold ", fold, "\nAccuracy ", round(conf$overall["Accuracy"] * 100, 2), "%"))
   } else {
-    plot <- plot + ggtitle(paste0("Confusion Matrix, all folds\nAccuracy ", round(conf$overall["Accuracy"] * 100, 2), "%"))
+    plot <- plot + ggtitle(paste0("Confusion Matrix, ", name, ", all folds\nAccuracy ", round(conf$overall["Accuracy"] * 100, 2), "%"))
   }
   # compose
   plot_final <- ggarrange(plot, legend, ncol = 2, nrow = 1, widths = c(6, 1)) # , legend.grob = legend, legend = "right")
@@ -460,29 +473,43 @@ conf_matrix_plot <- function(pred_data, fold) {
 
 ################################################################################
 
-path_models <- "H:/Daten/Studium/2_Master/4_Semester/4_Daten/02_testing/models_2cm_final_tls_rgb_geo/tls_rgb_geo"
+types <- c("tls", "tls_rgb", "tls_geo", "tls_rgb_geo")
+names <- c("TLS", "TLS & RGB", "TLS & GEO", "ALL")
 
-# get prediction paths
-csv_paths <- list.files(path_models, pattern = "prediction_truth_fold.csv", recursive = TRUE, full.names = TRUE)
-csv_path <- csv_paths[1] # TODO
+for (i in 1:4) {
+  # set type and name
+  type <- types[i]
+  name <- names[i]
 
-# load predictions & label lookup table
-pred_df <- read.csv(csv_path)
-label_df <- read.csv(path_labels)
+  # set paths
+  csv_path <- paste0(path_models, "/predictions_not_retrained.csv")
 
-# transform numbers to labels
-for (i in 1:nrow(label_df)) {
-  pred_df$predictions[pred_df$predictions == label_df$new[i]] <- label_df$old[[i]]
-  pred_df$truth[pred_df$truth == label_df$new[i]] <- label_df$old[[i]]
-}
+  # load predictions & label lookup table
+  pred_df <- read.csv(csv_path)
+  label_df <- read.csv(path_labels)
 
-# make plots
-for (i in c(1:5, "all")) {
-  if (nchar(i) == 1) {
-    i <- as.numeric(i)
+  # transform numbers to labels
+  for (i in 1:nrow(label_df)) {
+    pred_df$predictions[pred_df$predictions == label_df$new[i]] <- label_df$old[[i]]
+    pred_df$truth[pred_df$truth == label_df$new[i]] <- label_df$old[[i]]
   }
-  cairo_pdf(file = paste0(path_plots, "/conf_matrix_", i, ".pdf"), family = "Calibri", width = 8.27, height = 5.83)
-  print(conf_matrix_plot(pred_df, i))
+
+  # # make plots for each fold
+  # for (i in c(1:5, "all")) {
+  #   if (nchar(i) == 1) {
+  #     i <- as.numeric(i)
+  #   }
+  #   cairo_pdf(file = paste0(path_plots, "/conf_matrix_", type, "_", i, ".pdf"), family = "Calibri", width = 8.27, height = 5.83)
+  #   print(conf_matrix_plot(pred_df, i, type))
+  #   dev.off()
+  # }
+
+  # make plots
+  cairo_pdf(
+    file = paste0(path_plots, "/conf_matrix_", type, ".pdf"),
+    family = "Calibri", width = 8.27, height = 5.83
+  )
+  print(conf_matrix_plot(pred_df, "all", name))
   dev.off()
 }
 
@@ -490,25 +517,197 @@ for (i in c(1:5, "all")) {
 # ACCURACY INSTABILITY
 ################################################################################
 
-# boxplots
+# set paths & load data
+fluct_all <- c()
+for (type in c("tls", "tls_rgb", "tls_geo", "tls_rgb_geo")) {
+  path_model_type <- paste0(path_models, "/", type)
+  fluct_path <- paste0(path_model_type, "/accuracy_fluctuations_best_hyperparameters.csv")
+  fluct_df <- read.csv(fluct_path)
+  for (i in 1:5) {
+    fluct_all <- rbind(fluct_all, data.frame(
+      "type" = type,
+      "fold" = i,
+      "test_acc" = fluct_df[, i]
+    ))
+  }
+}
+
+# boxplots, accuracy fluctuations
+cairo_pdf(
+  file = paste0(path_plots, "/fluctuations_acc.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+ggplot(
+  fluct_all, aes(
+    x = type, y = test_acc, # alpha = fold,
+    fill = type, group = interaction(type, fold)
+  )
+) +
+  stat_boxplot(geom = "errorbar", alpha = 1, width = 0.2, position = position_dodge(0.9)) +
+  geom_boxplot(outlier.alpha = 0, outlier.size = 0, fill = "white", alpha = 1, position = position_dodge(0.9)) +
+  geom_boxplot(outlier.alpha = 0.01, outlier.size = 0.75, position = position_dodge(0.9)) +
+  scale_fill_manual(
+    values = color_scale_class,
+    name = "Input Data\nCombination",
+    labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")
+  ) +
+  theme_light() +
+  theme(
+    text = element_text(size = 14, family = "Calibri"),
+    legend.title = element_text(family = "Calibri", size = 16),
+    legend.key.width = unit(0.75, "cm"),
+    legend.key.height = unit(1, "cm"),
+    legend.text = element_text(family = "Calibri", size = 14)
+  ) +
+  scale_x_discrete(labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")) +
+  xlab("") +
+  ylab("Test Accuracy\n") +
+  scale_alpha_continuous(
+    range = c(0.3, 1), name = "\nInput Data\nTest Fold",
+    guide = guide_legend(override.aes = list(
+      fill = "grey60",
+      alpha = seq(0.3, 1, length.out = 5)
+    ))
+  )
+dev.off()
 
 ################################################################################
 # ACCURACY COMPARISON INPUTS
 ################################################################################
 
-# boxplots (accuracy, f1, kappa)
+measure_boxplot <- function(data, measure, name, legend = "none") {
+  data$measure <- data[, measure]
+  plot <- ggplot(data, aes(x = type, y = measure)) +
+    stat_boxplot(geom = "errorbar", width = 0.25) +
+    geom_boxplot(aes(fill = type), outlier.alpha = 0.01, outlier.size = 0.75) +
+    scale_fill_manual(
+      values = color_scale_type, name = "Input Data\nCombination",
+      labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")
+    ) +
+    theme_light() +
+    theme(
+      text = element_text(size = 14, family = "Calibri"),
+      legend.title = element_text(family = "Calibri", size = 16),
+      legend.key.width = unit(0.75, "cm"),
+      legend.key.height = unit(1, "cm"),
+      legend.text = element_text(family = "Calibri", size = 14),
+      legend.position = legend,
+    ) +
+    scale_x_discrete(labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")) +
+    xlab("") +
+    ylab(paste0("\n", name, "\n"))
+  return(plot)
+}
 
-# table, including sd
-# input combination | mean accuracy | mean f1 score | mean kappa
-# make bold if p-value compared to random model significant
-# -> how to get random model?
+################################################################################
+
+# create empty objects for storage
+measures_all <- c()
+conf_m_list <- list()
+preds_list <- list()
+
+# loop through types
+for (type in c("tls", "tls_rgb", "tls_geo", "tls_rgb_geo")) {
+  # load predictions
+  path_model_type <- paste0(path_models, "/", type)
+  preds_path <- paste0(path_model_type, "/predictions_not_retrained.csv")
+  preds_df <- read.csv(preds_path)
+  # replace numbers with labels
+  label_lookup <- read.csv(path_labels)
+  for (i in 1:nrow(label_lookup)) {
+    preds_df$predictions[preds_df$predictions == label_lookup$new[i]] <- label_lookup$old[[i]]
+    preds_df$truth[preds_df$truth == label_lookup$new[i]] <- label_lookup$old[[i]]
+  }
+  preds_list[[type]] <- preds_df
+  # loop through folds
+  for (i in 1:5) {
+    # extract measures
+    sub <- preds_df[preds_df$fold == i, ]
+    conf_m <- confusionMatrix(as.factor(sub$predictions), as.factor(sub$truth), mode = "everything")
+    conf_m_list[[paste0(type, "_", i)]] <- conf_m
+    measures_all <- rbind(measures_all, data.frame(
+      "type" = type,
+      "fold" = i,
+      "accuracy" = as.numeric(conf_m$overall["Accuracy"]),
+      "kappa" = as.numeric(conf_m$overall["Kappa"]),
+      "mean_f1" = mean(conf_m$byClass[, "F1"])
+    ))
+  }
+}
+
+################################################################################
+
+# make plots
+plot_acc <- measure_boxplot(measures_all, "accuracy", "Test Accuracy")
+plot_kappa <- measure_boxplot(measures_all, "kappa", "Kappa Statistic")
+plot_f1 <- measure_boxplot(measures_all, "mean_f1", "Mean F1-Score")
+measures_legend_bottom <- get_legend(measure_boxplot(measures_all, "accuracy", "Test Accuracy", "bottom"))
+measures_legend_right <- get_legend(measure_boxplot(measures_all, "accuracy", "Test Accuracy", "right"))
+
+# combine plots, all 3
+cairo_pdf(
+  file = paste0(path_plots, "/final_results_all.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+ggarrange(plot_acc, plot_f1, plot_kappa, measures_legend_right,
+  ncol = 2, nrow = 2
+)
+dev.off()
+
+# combine plots (one alone looks lame)
+cairo_pdf(
+  file = paste0(path_plots, "/final_results_acc_f1.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+ggarrange(plot_acc, plot_f1,
+  ncol = 2, nrow = 1,
+  legend.grob = measures_legend_bottom, legend = "bottom"
+)
+dev.off()
+
+################################################################################
+
+# calculate data for table
+accuracies <- c()
+kappas <- c()
+f1_mean <- c()
+f1_classes <- list()
+for (type in c("tls", "tls_rgb", "tls_geo", "tls_rgb_geo")) {
+  accuracy <- c()
+  kappa <- c()
+  f1_score <- c()
+  for (i in 1:5) {
+    conf_m <- conf_m_list[[paste0(type, "_", i)]]
+    accuracy <- c(accuracy, conf_m$overall[["Accuracy"]])
+    kappa <- c(kappa, conf_m$overall[["Kappa"]])
+    f1_score <- rbind(f1_score, conf_m$byClass[, "F1"])
+  }
+  accuracies[type] <- mean(accuracy)
+  kappas[type] <- mean(kappa)
+  f1_classes[[type]] <- apply(f1_score, 2, mean)
+  f1_mean[type] <- mean(f1_classes[[type]])
+}
+
+# arrange results in table
+output_results <- data.frame(
+  "Mean_Measure" = c(
+    "F1-Score, Blueberry", "F1-Score, Deadwood", "F1-Score, Forest Floor",
+    "F1-Score, Moss", "F1-Score, Spruce", "Mean F1-Score", "Accuracy", "Kappa"
+  ),
+  "TLS" = c(f1_classes[["tls"]], f1_mean["tls"], accuracies["tls"], kappas["tls"]),
+  "TLS_GEO" = c(f1_classes[["tls_geo"]], f1_mean["tls_geo"], accuracies["tls_geo"], kappas["tls_geo"]),
+  "TLS_RGB" = c(f1_classes[["tls_rgb"]], f1_mean["tls_rgb"], accuracies["tls_rgb"], kappas["tls_rgb"]),
+  "ALL" = c(f1_classes[["tls_rgb_geo"]], f1_mean["tls_rgb_geo"], accuracies["tls_rgb_geo"], kappas["tls_rgb_geo"])
+)
+output_results[, 2:5] <- round(output_results[, 2:5], 2)
+print(output_results)
 
 ################################################################################
 # VISUALIZE FILTERS
 ################################################################################
 
 # # Funktion zum Erzeugen von Filtervisualisierungen
-# generate_pattern <- function(layer_name, filter_index, size = 150) {  # size = Zoom
+# generate_pattern <- function(layer_name, filter_index, size = 150) { # size = Zoom
 #   layer_output <- model$get_layer(layer_name)$output
 #   loss <- k_mean(layer_output[,,,filter_index])
 #   grads <- k_gradients(loss, model$input)[[1]]
