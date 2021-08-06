@@ -22,3 +22,7 @@
 ## Workflow: Cross-Validation
 
 <img align="center" src="https://github.com/zoeschindler/masterarbeit/blob/main/Visualisierung_Workflow_2.png">
+
+## CNN: Architecture
+
+<img align="center" src="https://github.com/zoeschindler/masterarbeit/blob/main/Visualisierung_Architektur.png">
