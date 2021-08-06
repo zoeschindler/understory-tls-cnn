@@ -308,12 +308,12 @@ map_legend_label <- get_legend(
     labels = c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce")
   ) +
   theme(
-    text = element_text(family = "Calibri", size = 16),
-    legend.text = element_text(family = "Calibri", size = 16),
+    text = element_text(family = "Calibri", size = 14),
+    legend.text = element_text(family = "Calibri", size = 14),
     legend.box.spacing = unit(0.5, "cm"),
     legend.key.width = unit(0.5, "cm"),
     legend.key.height = unit(0.5, "cm"),
-    legend.title = element_text(family = "Calibri", size = 18),
+    legend.title = element_text(family = "Calibri", size = 16),
     legend.position = "bottom"
   )
 )
@@ -333,7 +333,7 @@ map_label <- ggplot() +
   xlim(c(447025, 447075)) +
   ylab("Northing\n") +
   xlab("\nEasting") +
-  theme(text = element_text(family = "Calibri", size = 16),
+  theme(text = element_text(family = "Calibri", size = 14),
         legend.position = "none")
 ggarrange(map_label, legend.grob = map_legend_label, legend = "bottom") # without ggarrange, legend not centered
 dev.off()
@@ -345,15 +345,15 @@ map_legend_confidence <- get_legend(
   ggplot() +
     geom_polygon(data = df, aes(x = long, y = lat, group = group, fill = chance), color = NA) +
     scale_fill_stepsn(
-      limits = c(0, 1), breaks = seq(0, 1, 0.2), # labels = x(0, 1, 0.2),
+      limits = c(0, 1), breaks = seq(0, 1, 0.2), show.limits = TRUE,
       colors = c(own_colors_named$red, "grey90", own_colors_named$blue),
       name="Prediction Confidence\n") +
-    theme(text = element_text(family = "Calibri", size = 16),
-          legend.text = element_text(family = "Calibri", size = 16),
+    theme(text = element_text(family = "Calibri", size = 14),
+          legend.text = element_text(family = "Calibri", size = 14),
           legend.box.spacing = unit(0.5, "cm"),
           legend.key.width = unit(1.75, "cm"),
           legend.key.height = unit(0.5, "cm"),
-          legend.title = element_text(family = "Calibri", size = 18),
+          legend.title = element_text(family = "Calibri", size = 16),
           legend.position = "bottom")
 )
 
@@ -362,7 +362,7 @@ cairo_pdf(file = paste0(path_maps, "/prediction_map_confidence.pdf"), family = "
 map_confidence <- ggplot() +
   geom_polygon(data = df, aes(x = long, y = lat, group = group, fill = chance), color = NA) +
   scale_fill_stepsn(
-    limits = c(0, 1), breaks = seq(0, 1, 0.2), # labels = x(0, 1, 0.2),
+    limits = c(0, 1), breaks = seq(0, 1, 0.2), show.limits = TRUE,
     colors = c(own_colors_named$red, "grey90", own_colors_named$blue),
     name="Prediction Confidence\n") +
   theme_light() +
@@ -371,7 +371,7 @@ map_confidence <- ggplot() +
   xlim(c(447025, 447075)) +
   ylab("Northing\n") +
   xlab("\nEasting") +
-  theme(text = element_text(family = "Calibri", size = 16),
+  theme(text = element_text(family = "Calibri", size = 14),
         legend.position = "none")
 ggarrange(map_confidence, legend.grob = map_legend_confidence, legend = "bottom") # without ggarrange, legend not centered
 dev.off()
