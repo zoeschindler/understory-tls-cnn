@@ -84,8 +84,7 @@ tif_to_rds <- function(clip_dir, pixels, bands, folds = 5, seed = 123) {
   set.seed(seed)
   # get all file paths, excluding smallest groups
   img_paths_all <- list.files(clip_dir, pattern = "[.]tif", full.names = TRUE)
-  img_paths_all <- img_paths_all[!grepl("grass", img_paths_all)]
-  img_paths_all <- img_paths_all[!grepl("rock", img_paths_all)]
+  img_paths_all <- img_paths_all[!grepl("grass", img_paths_all) & !grepl("rock", img_paths_all)]
   # get all labels
   img_labels_all <- sapply(strsplit(basename(img_paths_all), "[.]"), "[[", 1)
   img_labels_all <- gsub("[[:digit:]]", "", img_labels_all)
@@ -146,7 +145,7 @@ create_dataset <- function(rdata_list, holdout_fold, pixels, bands, max_per_imag
       rm(raw_train_vali)
     }
   }
-  # replace NA with -1 in images
+  # replace NA in images
   img_test[is.na(img_test)] <- na_replacement
   img_train_vali[is.na(img_train_vali)] <- na_replacement
   # make stratified split

@@ -146,6 +146,7 @@ ggcorrplot(cor_matrix_after,
     legend.key.width = unit(0.5, "cm"),
     legend.key.height = unit(1.5, "cm"),
     legend.title = element_text(family = "Calibri", size = 18)
+    
   )
 dev.off()
 
@@ -267,7 +268,8 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log 
       scale_fill_manual(values = color_scale_class) +
       theme_light() +
       theme(
-        text = element_text(size = 14, family = "Calibri"), legend.position = "none",
+        text = element_text(size = 14, family = "Calibri"),
+        legend.position = "none",
         plot.title = element_text(hjust = 0.5)
       )
   } else {
@@ -283,7 +285,8 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log 
       scale_fill_manual(values = color_scale_class) +
       theme_light() +
       theme(
-        text = element_text(size = 14, family = "Calibri"), legend.position = "none",
+        text = element_text(size = 14, family = "Calibri"),
+        legend.position = "none",
         plot.title = element_text(hjust = 0.5)
       ) +
       scale_y_continuous(
@@ -302,7 +305,11 @@ raster_legend <- function(data, pos) {
     geom_boxplot(aes(fill = label)) +
     scale_fill_manual(values = color_scale_type, name = "Vegetation Label", labels = label_vector) +
     theme_light() +
-    theme(text = element_text(size = 16, family = "Calibri"), legend.position = pos)
+    theme(legend.position = pos,
+          legend.title = element_text(family = "Calibri", size = 16),
+          legend.key.width = unit(0.75, "cm"),
+          legend.key.height = unit(1, "cm"),
+          legend.text = element_text(family = "Calibri", size = 14))
   legend <- get_legend(plot)
   return(legend)
 }
@@ -349,7 +356,8 @@ dev.off()
 
 # all tls values (nDSM, point_density, reflectance_mean, reflectance_sd)
 # point density without 0s, because logarithmic scale hates that
-cairo_pdf(file = paste0(path_plots, "/tls_raster_stats.pdf"), family = "Calibri", width = 8.27, height = 5.83)
+cairo_pdf(file = paste0(path_plots, "/tls_raster_stats.pdf"),
+          family = "Calibri", width = 8.27, height = 5.83)
 plot_dens <- raster_stat_plot(raster_vals, "Point Density", "point_density", log = TRUE)
 plot_nDSM <- raster_stat_plot(raster_vals, "nDSM Height", "nDSM")
 plot_ref_mean <- raster_stat_plot(raster_vals, "Reflectance, mean", "reflectance_mean")
@@ -543,7 +551,7 @@ ggplot(
     fill = type, group = interaction(type, fold)
   )
 ) +
-  stat_boxplot(geom = "errorbar", alpha = 1, width = 0.2, position = position_dodge(0.9)) +
+  stat_boxplot(geom = "errorbar", alpha = 1, width = 0.3, position = position_dodge(0.9)) +
   geom_boxplot(outlier.alpha = 0, outlier.size = 0, fill = "white", alpha = 1, position = position_dodge(0.9)) +
   geom_boxplot(outlier.alpha = 0.01, outlier.size = 0.75, position = position_dodge(0.9)) +
   scale_fill_manual(
@@ -654,10 +662,10 @@ ggarrange(plot_acc, plot_f1, plot_kappa, measures_legend_right,
 )
 dev.off()
 
-# combine plots (one alone looks lame)
+# combine plots, f1 and accuracy
 cairo_pdf(
   file = paste0(path_plots, "/final_results_acc_f1.pdf"),
-  family = "Calibri", width = 8.27, height = 5.83
+  family = "Calibri", width = 8.27, height = 2.93
 )
 ggarrange(plot_acc, plot_f1,
   ncol = 2, nrow = 1,
