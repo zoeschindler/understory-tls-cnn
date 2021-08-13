@@ -249,7 +249,17 @@ if (FALSE) {
 
 ################################################################################
 
-raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log = FALSE) {
+f1 <- function(x) {
+  ans <- boxplot.stats(x)
+  data.frame(ymin = ans$conf[1], ymax = ans$conf[2], y = ans$stats[3])
+}
+
+f2 <- function(x) {
+  ans <- boxplot.stats(x)
+  data.frame(yintercept = as.numeric(c(ans$conf[1], ans$conf[2])))
+}
+
+raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log = FALSE, notch = FALSE) {
   # create plots
   if (abbreviate) {
     label_vector <- c("B", "D", "F", "M", "S")
@@ -258,8 +268,14 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log 
   }
   if (!log) {
     plot <- ggplot(data[data$type == raster_type, ], aes(x = label, y = values)) +
-      stat_boxplot(geom = "errorbar", width = 0.25) +
-      geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75) +
+      stat_boxplot(geom = "errorbar", width = 0.25)
+    if (notch) {
+      plot <- plot +
+        stat_summary(fun.data = f1, geom = "crossbar", colour = NA, fill = "red", width = 1, alpha = 1) # +
+        # stat_summary(fun.data = f2, geom = "hline", colour = "gray50", linetype = "dotted", size = 0.5)
+    }
+    plot <- plot +
+      geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75, width = 0.7) +
       xlab("") +
       ylab("") +
       ggtitle(y_label) +
@@ -275,7 +291,13 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log 
     data$values[data$type == raster_type & data$values == 0] <- NA
     data <- na.omit(data)
     plot <- ggplot(data[data$type == raster_type, ], aes(x = label, y = values + 1)) +
-      stat_boxplot(geom = "errorbar", width = 0.25) +
+      stat_boxplot(geom = "errorbar", width = 0.25)
+    if (notch) {
+      plot <- plot +
+        stat_summary(fun.data = f1, geom = "crossbar", colour = NA, fill = "red", width = 1, alpha = 1) # +
+      # stat_summary(fun.data = f2, geom = "hline", colour = "gray50", linetype = "dotted", size = 0.5)
+    }
+    plot <- plot +
       geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75) +
       xlab("") +
       ylab("") +
@@ -302,7 +324,7 @@ raster_legend <- function(data, pos) {
   label_vector <- c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce")
   plot <- ggplot(data[data$type == "nDSM", ], aes(x = label, y = values)) +
     geom_boxplot(aes(fill = label)) +
-    scale_fill_manual(values = color_scale_type, name = "Vegetation Label", labels = label_vector) +
+    scale_fill_manual(values = color_scale_class, name = "Vegetation Label", labels = label_vector) +
     theme_light() +
     theme(
       legend.position = pos,
@@ -338,6 +360,19 @@ ggarrange(plot_red, plot_green, plot_blue,
 )
 dev.off()
 
+# all rgb values (R, G, B), notch
+cairo_pdf(
+  file = paste0(path_plots, "/rgb_raster_stats_notch.pdf"),
+  family = "Calibri", width = 8.27, height = 2.93
+)
+plot_red <- raster_stat_plot(raster_vals, "Red", "R", notch = TRUE)
+plot_green <- raster_stat_plot(raster_vals, "Green", "G", notch = TRUE)
+plot_blue <- raster_stat_plot(raster_vals, "Blue", "B", notch = TRUE)
+ggarrange(plot_red, plot_green, plot_blue,
+          ncol = 3, nrow = 1, legend.grob = plot_legend_line, legend = "bottom"
+)
+dev.off()
+
 # all geometry values (anisotropy_max, curvature_max, linearity_max, linearity_sd, planarity_mean, planarity_sd)
 cairo_pdf(
   file = paste0(path_plots, "/geo_raster_stats.pdf"),
@@ -355,6 +390,23 @@ ggarrange(plot_aniso_max, plot_curv_max, plot_linea_max,
 )
 dev.off()
 
+# all geometry values (anisotropy_max, curvature_max, linearity_max, linearity_sd, planarity_mean, planarity_sd), notch
+cairo_pdf(
+  file = paste0(path_plots, "/geo_raster_stats_notch.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+plot_aniso_max <- raster_stat_plot(raster_vals, "Anisotropy, max", "anisotropy_max", notch = TRUE)
+plot_curv_max <- raster_stat_plot(raster_vals, "Curvature, max", "curvature_max", notch = TRUE)
+plot_linea_max <- raster_stat_plot(raster_vals, "Linearity, max", "linearity_max", notch = TRUE)
+plot_linea_sd <- raster_stat_plot(raster_vals, "Linearity, sd", "linearity_sd", notch = TRUE)
+plot_plan_mean <- raster_stat_plot(raster_vals, "Planarity, mean", "planarity_mean", notch = TRUE)
+plot_plan_sd <- raster_stat_plot(raster_vals, "Planarity, sd", "planarity_sd", notch = TRUE)
+ggarrange(plot_aniso_max, plot_curv_max, plot_linea_max,
+          plot_linea_sd, plot_plan_mean, plot_plan_sd,
+          ncol = 3, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
+)
+dev.off()
+
 # all tls values (nDSM, point_density, reflectance_mean, reflectance_sd)
 # point density without 0s, because logarithmic scale hates that
 cairo_pdf(
@@ -367,6 +419,21 @@ plot_ref_mean <- raster_stat_plot(raster_vals, "Reflectance, mean", "reflectance
 plot_ref_sd <- raster_stat_plot(raster_vals, "Reflectance, sd", "reflectance_sd")
 ggarrange(plot_dens, plot_nDSM, plot_ref_mean, plot_ref_sd,
   ncol = 2, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
+)
+dev.off()
+
+# all tls values (nDSM, point_density, reflectance_mean, reflectance_sd), notch
+# point density without 0s, because logarithmic scale hates that
+cairo_pdf(
+  file = paste0(path_plots, "/tls_raster_stats_notch.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+plot_dens <- raster_stat_plot(raster_vals, "Point Density", "point_density", log = TRUE, notch = TRUE)
+plot_nDSM <- raster_stat_plot(raster_vals, "nDSM Height", "nDSM", notch = TRUE)
+plot_ref_mean <- raster_stat_plot(raster_vals, "Reflectance, mean", "reflectance_mean", notch = TRUE)
+plot_ref_sd <- raster_stat_plot(raster_vals, "Reflectance, sd", "reflectance_sd", notch = TRUE)
+ggarrange(plot_dens, plot_nDSM, plot_ref_mean, plot_ref_sd,
+          ncol = 2, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
 )
 dev.off()
 
