@@ -545,18 +545,18 @@ for (type in c("tls", "tls_rgb", "tls_geo", "tls_rgb_geo")) {
 
 # boxplots, accuracy fluctuations, per fold
 cairo_pdf(
-  file = paste0(path_plots, "/fluctuations_acc.pdf"),
+  file = paste0(path_plots, "/fluctuations_acc_varied.pdf"),
   family = "Calibri", width = 8.27, height = 5.83
 )
 ggplot(
   fluct_all, aes(
-    x = type, y = test_acc, # alpha = fold,
+    x = type, y = test_acc, alpha = fold,
     fill = type, group = interaction(type, fold)
   )
 ) +
   stat_boxplot(geom = "errorbar", alpha = 1, width = 0.3, position = position_dodge(0.9)) +
   geom_boxplot(outlier.alpha = 0, outlier.size = 0, fill = "white", alpha = 1, position = position_dodge(0.9)) +
-  geom_boxplot(outlier.alpha = 0.01, outlier.size = 0.75, position = position_dodge(0.9)) +
+  geom_boxplot(outlier.alpha = 1, outlier.size = 1, position = position_dodge(0.9)) +
   scale_fill_manual(
     values = color_scale_class,
     name = "Input Data\nCombination",
@@ -593,7 +593,7 @@ ggplot(
   )
 ) +
   stat_boxplot(geom = "errorbar", alpha = 1, width = 0.2, position = position_dodge(0.9)) +
-  geom_boxplot(outlier.alpha = 0.01, outlier.size = 0.75, position = position_dodge(0.9)) +
+  geom_boxplot(outlier.alpha = 1, outlier.size = 1, position = position_dodge(0.9)) +
   scale_fill_manual(
     values = color_scale_class,
     name = "Input Data\nCombination",
@@ -638,7 +638,7 @@ measure_boxplot <- function(data, measure, name, legend = "none", notch = FALSE)
   }
 
   plot <- plot +
-    geom_boxplot(aes(fill = type), outlier.alpha = 0.01, outlier.size = 0.75, width = 0.7) +
+    geom_boxplot(aes(fill = type), outlier.alpha = 1, outlier.size = 1.5, width = 0.7) +
     scale_fill_manual(
       values = color_scale_type, name = "Input Data\nCombination",
       labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")
