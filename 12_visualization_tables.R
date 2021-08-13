@@ -510,7 +510,7 @@ conf_matrix_plot <- function(pred_data, fold, name) {
     geom_text(aes(label = paste0(Freq)), color = "gray20", size = 4, alpha = 1) +
     geom_text(aes(label = paste0("\n\n ", gsub(" ", "", Freq_prob), "%")), color = "gray20", size = 3, alpha = 1) +
     xlab(paste0("\nReference (n = ", sum(conf_data$Freq), ")")) +
-    ylab("Prediction\n") +
+    ylab(paste0("Prediction (n = ", sum(conf_data$Freq), ")\n")) +
     scale_x_discrete(labels = c(
       paste0("Blueberry\n(n = ", sum(conf_data$Freq[conf_data$Reference == "blueberry"]), ")"),
       paste0("Deadwood\n(n = ", sum(conf_data$Freq[conf_data$Reference == "dead_wood"]), ")"),
@@ -518,7 +518,13 @@ conf_matrix_plot <- function(pred_data, fold, name) {
       paste0("Moss\n(n = ", sum(conf_data$Freq[conf_data$Reference == "moss"]), ")"),
       paste0("Spruce\n(n = ", sum(conf_data$Freq[conf_data$Reference == "spruce"]), ")")
     )) +
-    scale_y_discrete(labels = rev(c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce"))) +
+    scale_y_discrete(labels = rev(c(
+      paste0("Blueberry\n(n = ", sum(conf_data$Freq[conf_data$Prediction == "blueberry"]), ")"),
+      paste0("Deadwood\n(n = ", sum(conf_data$Freq[conf_data$Prediction == "dead_wood"]), ")"),
+      paste0("Forest Floor\n(n = ", sum(conf_data$Freq[conf_data$Prediction == "forest_floor"]), ")"),
+      paste0("Moss\n(n = ", sum(conf_data$Freq[conf_data$Prediction == "moss"]), ")"),
+      paste0("Spruce\n(n = ", sum(conf_data$Freq[conf_data$Prediction == "spruce"]), ")")
+    ))) +
     scale_fill_manual(values = color_scale) +
     theme_light() +
     theme(text = element_text(size = 14, family = "Calibri"), legend.position = "none")
@@ -527,11 +533,14 @@ conf_matrix_plot <- function(pred_data, fold, name) {
   legend <- ggplot(data = dummy, aes(x = x, y = y, alpha = z)) +
     geom_tile(fill = own_colors_named$blue) +
     geom_tile(aes(fill = z), alpha = 0) +
-    scale_fill_gradient(high = own_colors_named$blue, low = "#e6f7fb") +
+    #scale_fill_gradient(high = own_colors_named$blue, low = "#e6f7fb") +
+    scale_fill_gradient(high = own_colors_named$blue, low = "#e6f7fb",
+                        labels = function(x) paste0(x,"%")) +
     guides(alpha = "none") +
-    labs(fill = "Fraction of\nReference\nin Percent\n") +
+    labs(fill = "Fraction of\nReference\n(per Class)\n") +
     theme(
       legend.title = element_text(family = "Calibri", size = 16),
+      legend.text.align = 1,
       # legend.box.spacing = unit(0.5, "cm"),
       legend.key.width = unit(0.5, "cm"),
       legend.key.height = unit(1.5, "cm"),
@@ -542,7 +551,12 @@ conf_matrix_plot <- function(pred_data, fold, name) {
   if (fold != "all") {
     plot <- plot + ggtitle(paste0("Confusion Matrix, ", name, ", fold ", fold, "\nAccuracy ", round(conf$overall["Accuracy"] * 100, 2), "%"))
   } else {
-    plot <- plot + ggtitle(paste0("Confusion Matrix, ", name, ", all folds\nAccuracy ", round(conf$overall["Accuracy"] * 100, 2), "%"))
+    # plot <- plot + ggtitle(paste0("Confusion Matrix, ", name, ", all folds\nAccuracy ", round(conf$overall["Accuracy"] * 100, 2), "%"))
+    plot <- plot +
+      labs(title = paste0("Confusion Matrix: ", name),
+           subtitle = paste0("Overall Accuracy ", round(conf$overall["Accuracy"] * 100, 2),
+                             "%, Mean F1-Score ", round(mean(conf$byClass[,"F1"]), 2))) +
+      theme(plot.title = element_text(face = "bold"))
   }
   # compose
   plot_final <- ggarrange(plot, legend, ncol = 2, nrow = 1, widths = c(6, 1)) # , legend.grob = legend, legend = "right")
