@@ -560,7 +560,7 @@ for (i in 1:4) {
   name <- names[i]
 
   # set paths
-  csv_path <- paste0(path_models, "/predictions_not_retrained.csv")
+  csv_path <- paste0(path_models, "/", type, "/predictions_not_retrained.csv")
 
   # load predictions & label lookup table
   pred_df <- read.csv(csv_path)
