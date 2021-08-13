@@ -146,7 +146,6 @@ ggcorrplot(cor_matrix_after,
     legend.key.width = unit(0.5, "cm"),
     legend.key.height = unit(1.5, "cm"),
     legend.title = element_text(family = "Calibri", size = 18)
-    
   )
 dev.off()
 
@@ -305,11 +304,13 @@ raster_legend <- function(data, pos) {
     geom_boxplot(aes(fill = label)) +
     scale_fill_manual(values = color_scale_type, name = "Vegetation Label", labels = label_vector) +
     theme_light() +
-    theme(legend.position = pos,
-          legend.title = element_text(family = "Calibri", size = 16),
-          legend.key.width = unit(0.75, "cm"),
-          legend.key.height = unit(1, "cm"),
-          legend.text = element_text(family = "Calibri", size = 14))
+    theme(
+      legend.position = pos,
+      legend.title = element_text(family = "Calibri", size = 16),
+      legend.key.width = unit(0.75, "cm"),
+      legend.key.height = unit(1, "cm"),
+      legend.text = element_text(family = "Calibri", size = 14)
+    )
   legend <- get_legend(plot)
   return(legend)
 }
@@ -356,8 +357,10 @@ dev.off()
 
 # all tls values (nDSM, point_density, reflectance_mean, reflectance_sd)
 # point density without 0s, because logarithmic scale hates that
-cairo_pdf(file = paste0(path_plots, "/tls_raster_stats.pdf"),
-          family = "Calibri", width = 8.27, height = 5.83)
+cairo_pdf(
+  file = paste0(path_plots, "/tls_raster_stats.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
 plot_dens <- raster_stat_plot(raster_vals, "Point Density", "point_density", log = TRUE)
 plot_nDSM <- raster_stat_plot(raster_vals, "nDSM Height", "nDSM")
 plot_ref_mean <- raster_stat_plot(raster_vals, "Reflectance, mean", "reflectance_mean")
@@ -540,7 +543,7 @@ for (type in c("tls", "tls_rgb", "tls_geo", "tls_rgb_geo")) {
   }
 }
 
-# boxplots, accuracy fluctuations
+# boxplots, accuracy fluctuations, per fold
 cairo_pdf(
   file = paste0(path_plots, "/fluctuations_acc.pdf"),
   family = "Calibri", width = 8.27, height = 5.83
@@ -579,15 +582,63 @@ ggplot(
   )
 dev.off()
 
+# boxplots, accuracy fluctuations, overall
+cairo_pdf(
+  file = paste0(path_plots, "/fluctuations_acc_overall.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+ggplot(
+  fluct_all, aes(
+    x = type, y = test_acc, fill = type
+  )
+) +
+  stat_boxplot(geom = "errorbar", alpha = 1, width = 0.2, position = position_dodge(0.9)) +
+  geom_boxplot(outlier.alpha = 0.01, outlier.size = 0.75, position = position_dodge(0.9)) +
+  scale_fill_manual(
+    values = color_scale_class,
+    name = "Input Data\nCombination",
+    labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")
+  ) +
+  theme_light() +
+  theme(
+    text = element_text(size = 14, family = "Calibri"),
+    legend.title = element_text(family = "Calibri", size = 16),
+    legend.key.width = unit(0.75, "cm"),
+    legend.key.height = unit(1, "cm"),
+    legend.text = element_text(family = "Calibri", size = 14)
+  ) +
+  scale_x_discrete(labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")) +
+  xlab("") +
+  ylab("Test Accuracy\n")
+dev.off()
+
 ################################################################################
 # ACCURACY COMPARISON INPUTS
 ################################################################################
 
-measure_boxplot <- function(data, measure, name, legend = "none") {
+f1 <- function(x) {
+  ans <- boxplot.stats(x)
+  data.frame(ymin = ans$conf[1], ymax = ans$conf[2], y = ans$stats[3])
+}
+
+f2 <- function(x) {
+  ans <- boxplot.stats(x)
+  data.frame(yintercept = as.numeric(c(ans$conf[1], ans$conf[2])))
+}
+
+measure_boxplot <- function(data, measure, name, legend = "none", notch = FALSE) {
   data$measure <- data[, measure]
   plot <- ggplot(data, aes(x = type, y = measure)) +
-    stat_boxplot(geom = "errorbar", width = 0.25) +
-    geom_boxplot(aes(fill = type), outlier.alpha = 0.01, outlier.size = 0.75) +
+    stat_boxplot(geom = "errorbar", width = 0.25)
+
+  if (notch) {
+    plot <- plot +
+      stat_summary(fun.data = f1, geom = "crossbar", colour = NA, fill = "black", width = 0.85, alpha = 0.25) +
+      stat_summary(fun.data = f2, geom = "hline", colour = "gray50", linetype = "dotted", size = 0.5)
+  }
+
+  plot <- plot +
+    geom_boxplot(aes(fill = type), outlier.alpha = 0.01, outlier.size = 0.75, width = 0.7) +
     scale_fill_manual(
       values = color_scale_type, name = "Input Data\nCombination",
       labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")
@@ -646,31 +697,49 @@ for (type in c("tls", "tls_rgb", "tls_geo", "tls_rgb_geo")) {
 ################################################################################
 
 # make plots
-plot_acc <- measure_boxplot(measures_all, "accuracy", "Test Accuracy")
-plot_kappa <- measure_boxplot(measures_all, "kappa", "Kappa Statistic")
-plot_f1 <- measure_boxplot(measures_all, "mean_f1", "Mean F1-Score")
+plot_acc <- measure_boxplot(measures_all, "accuracy", "Test Accuracy", notch = FALSE)
+plot_acc_notch <- measure_boxplot(measures_all, "accuracy", "Test Accuracy", notch = TRUE)
+plot_f1 <- measure_boxplot(measures_all, "mean_f1", "Mean F1-Score", notch = FALSE)
+plot_f1_notch <- measure_boxplot(measures_all, "mean_f1", "Mean F1-Score", notch = TRUE)
 measures_legend_bottom <- get_legend(measure_boxplot(measures_all, "accuracy", "Test Accuracy", "bottom"))
 measures_legend_right <- get_legend(measure_boxplot(measures_all, "accuracy", "Test Accuracy", "right"))
 
-# combine plots, all 3
+# combine plots, f1 and accuracy, notch
 cairo_pdf(
-  file = paste0(path_plots, "/final_results_all.pdf"),
+  file = paste0(path_plots, "/final_results_acc_f1_notch.pdf"),
   family = "Calibri", width = 8.27, height = 5.83
 )
-ggarrange(plot_acc, plot_f1, plot_kappa, measures_legend_right,
-  ncol = 2, nrow = 2
+ggarrange(plot_acc_notch, plot_f1_notch,
+  ncol = 2, nrow = 1,
+  legend.grob = measures_legend_bottom, legend = "bottom"
 )
 dev.off()
 
-# combine plots, f1 and accuracy
+# combine plots, f1 and accuracy, no notch
 cairo_pdf(
   file = paste0(path_plots, "/final_results_acc_f1.pdf"),
-  family = "Calibri", width = 8.27, height = 2.93
+  family = "Calibri", width = 8.27, height = 5.83
 )
 ggarrange(plot_acc, plot_f1,
   ncol = 2, nrow = 1,
   legend.grob = measures_legend_bottom, legend = "bottom"
 )
+dev.off()
+
+# combine plots, accuracy, notch
+cairo_pdf(
+  file = paste0(path_plots, "/final_results_acc_notch.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+measure_boxplot(measures_all, "accuracy", "Test Accuracy", legend = "right", notch = TRUE)
+dev.off()
+
+# combine plots, f1, notch
+cairo_pdf(
+  file = paste0(path_plots, "/final_results_f1_notch.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+measure_boxplot(measures_all, "mean_f1", "Mean F1-Score", legend = "right", notch = TRUE)
 dev.off()
 
 ################################################################################
