@@ -66,7 +66,8 @@ color_scale_type <- c(
   "tls" = own_colors_named$yellow,
   "tls_geo" = own_colors_named$green,
   "tls_rgb" = own_colors_named$blue,
-  "tls_rgb_geo" = own_colors_named$red
+  "tls_rgb_geo" = own_colors_named$red,
+  "multiple" = "gray80"
 )
 
 ################################################################################
@@ -272,7 +273,7 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log 
     if (notch) {
       plot <- plot +
         stat_summary(fun.data = f1, geom = "crossbar", colour = NA, fill = "red", width = 1, alpha = 1) # +
-        # stat_summary(fun.data = f2, geom = "hline", colour = "gray50", linetype = "dotted", size = 0.5)
+      # stat_summary(fun.data = f2, geom = "hline", colour = "gray50", linetype = "dotted", size = 0.5)
     }
     plot <- plot +
       geom_boxplot(aes(fill = label), outlier.alpha = 0.01, outlier.size = 0.75, width = 0.7) +
@@ -369,7 +370,7 @@ plot_red <- raster_stat_plot(raster_vals, "Red", "R", notch = TRUE)
 plot_green <- raster_stat_plot(raster_vals, "Green", "G", notch = TRUE)
 plot_blue <- raster_stat_plot(raster_vals, "Blue", "B", notch = TRUE)
 ggarrange(plot_red, plot_green, plot_blue,
-          ncol = 3, nrow = 1, legend.grob = plot_legend_line, legend = "bottom"
+  ncol = 3, nrow = 1, legend.grob = plot_legend_line, legend = "bottom"
 )
 dev.off()
 
@@ -402,8 +403,8 @@ plot_linea_sd <- raster_stat_plot(raster_vals, "Linearity, sd", "linearity_sd", 
 plot_plan_mean <- raster_stat_plot(raster_vals, "Planarity, mean", "planarity_mean", notch = TRUE)
 plot_plan_sd <- raster_stat_plot(raster_vals, "Planarity, sd", "planarity_sd", notch = TRUE)
 ggarrange(plot_aniso_max, plot_curv_max, plot_linea_max,
-          plot_linea_sd, plot_plan_mean, plot_plan_sd,
-          ncol = 3, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
+  plot_linea_sd, plot_plan_mean, plot_plan_sd,
+  ncol = 3, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
 )
 dev.off()
 
@@ -433,7 +434,7 @@ plot_nDSM <- raster_stat_plot(raster_vals, "nDSM Height", "nDSM", notch = TRUE)
 plot_ref_mean <- raster_stat_plot(raster_vals, "Reflectance, mean", "reflectance_mean", notch = TRUE)
 plot_ref_sd <- raster_stat_plot(raster_vals, "Reflectance, sd", "reflectance_sd", notch = TRUE)
 ggarrange(plot_dens, plot_nDSM, plot_ref_mean, plot_ref_sd,
-          ncol = 2, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
+  ncol = 2, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
 )
 dev.off()
 
@@ -475,7 +476,7 @@ for (class in unique(final_points$Name)) {
 # regression between val_acc and val_loss
 
 ################################################################################
-# CONFUSION MATRICES
+# CONFUSION MATRICES - SINGLE
 ################################################################################
 
 conf_matrix_plot <- function(pred_data, fold, name) {
@@ -533,9 +534,11 @@ conf_matrix_plot <- function(pred_data, fold, name) {
   legend <- ggplot(data = dummy, aes(x = x, y = y, alpha = z)) +
     geom_tile(fill = own_colors_named$blue) +
     geom_tile(aes(fill = z), alpha = 0) +
-    #scale_fill_gradient(high = own_colors_named$blue, low = "#e6f7fb") +
-    scale_fill_gradient(high = own_colors_named$blue, low = "#e6f7fb",
-                        labels = function(x) paste0(x,"%")) +
+    # scale_fill_gradient(high = own_colors_named$blue, low = "#e6f7fb") +
+    scale_fill_gradient(
+      high = own_colors_named$blue, low = "#e6f7fb",
+      labels = function(x) paste0(x, "%")
+    ) +
     guides(alpha = "none") +
     labs(fill = "Fraction of\nReference\n(per Class)\n") +
     theme(
@@ -553,9 +556,13 @@ conf_matrix_plot <- function(pred_data, fold, name) {
   } else {
     # plot <- plot + ggtitle(paste0("Confusion Matrix, ", name, ", all folds\nAccuracy ", round(conf$overall["Accuracy"] * 100, 2), "%"))
     plot <- plot +
-      labs(title = paste0("Confusion Matrix: ", name),
-           subtitle = paste0("Overall Accuracy ", round(conf$overall["Accuracy"] * 100, 2),
-                             "%, Mean F1-Score ", round(mean(conf$byClass[,"F1"]), 2))) +
+      labs(
+        title = paste0("Confusion Matrix: ", name),
+        subtitle = paste0(
+          "Overall Accuracy ", round(conf$overall["Accuracy"] * 100, 2),
+          "%, Mean F1-Score ", round(mean(conf$byClass[, "F1"]), 2)
+        )
+      ) +
       theme(plot.title = element_text(face = "bold"))
   }
   # compose
@@ -586,16 +593,6 @@ for (i in 1:4) {
     pred_df$truth[pred_df$truth == label_df$new[i]] <- label_df$old[[i]]
   }
 
-  # # make plots for each fold
-  # for (i in c(1:5, "all")) {
-  #   if (nchar(i) == 1) {
-  #     i <- as.numeric(i)
-  #   }
-  #   cairo_pdf(file = paste0(path_plots, "/conf_matrix_", type, "_", i, ".pdf"), family = "Calibri", width = 8.27, height = 5.83)
-  #   print(conf_matrix_plot(pred_df, i, type))
-  #   dev.off()
-  # }
-
   # make plots
   cairo_pdf(
     file = paste0(path_plots, "/conf_matrix_", type, ".pdf"),
@@ -604,6 +601,164 @@ for (i in 1:4) {
   print(conf_matrix_plot(pred_df, "all", name))
   dev.off()
 }
+
+################################################################################
+# CONFUSION MATRICES - COMBINED
+################################################################################
+
+conf_all <- c()
+types <- c("tls", "tls_geo", "tls_rgb", "tls_rgb_geo")
+names <- c("TLS", "TLS & GEO", "TLS & RGB", "ALL")
+
+for (i in 1:4) {
+  # set type and name
+  type <- types[i]
+  name <- names[i]
+
+  # set paths
+  csv_path <- paste0(path_models, "/", type, "/predictions_not_retrained.csv")
+
+  # load predictions & label lookup table
+  pred_df <- read.csv(csv_path)
+  label_df <- read.csv(path_labels)
+
+  # transform numbers to labels
+  for (i in 1:nrow(label_df)) {
+    pred_df$predictions[pred_df$predictions == label_df$new[i]] <- label_df$old[[i]]
+    pred_df$truth[pred_df$truth == label_df$new[i]] <- label_df$old[[i]]
+  }
+
+  # make confusion matrix
+  conf <- confusionMatrix(as.factor(pred_df$predictions), as.factor(pred_df$truth), mode = "everything")
+  conf_data <- data.frame(conf$table)
+
+  # percentage of true values of each label
+  conf_data <- conf_data %>%
+    group_by(Reference) %>%
+    mutate(Prob = format(round(Freq / sum(Freq) * 100, 2), nsmall = 2)) %>%
+    ungroup() %>%
+    arrange(Reference)
+
+  # get class distribution
+  total_ref <- data.frame(
+    "all" = sum(conf_data$Freq),
+    "blueberry" = sum(conf_data$Freq[conf_data$Reference == "blueberry"]),
+    "dead_wood" = sum(conf_data$Freq[conf_data$Reference == "dead_wood"]),
+    "forest_floor" = sum(conf_data$Freq[conf_data$Reference == "forest_floor"]),
+    "moss" = sum(conf_data$Freq[conf_data$Reference == "moss"]),
+    "spruce" = sum(conf_data$Freq[conf_data$Reference == "spruce"])
+  )
+
+  # save in dataframe
+  conf_all <- rbind(conf_all, cbind(conf_data, "Name" = type))
+}
+
+# reshape & extract data for plot
+conf_all <- conf_all %>%
+  group_by(Prediction, Reference) %>%
+  summarise(
+    max_freq = max(Freq),
+    min_freq = min(Freq),
+    max_prob = Prob[which.max(Freq)],
+    min_prob = Prob[which.min(Freq)],
+    max_n = sum(Freq == max(Freq)),
+    min_n = sum(Freq == min(Freq)),
+    max_name = paste0(Name[Freq == max(Freq)], collapse = " - "),
+    min_name = paste0(Name[Freq == min(Freq)], collapse = " - ")
+  )
+
+# replace Name when multiple models
+conf_all$max_name <- ifelse(conf_all$max_n > 1, "multiple", conf_all$max_name)
+conf_all$min_name <- ifelse(conf_all$min_n > 1, "multiple", conf_all$min_name)
+
+# reshape even more!
+conf_all_final <- data.frame()
+for (i in 1:nrow(conf_all)) {
+  if (conf_all$Reference[i] == conf_all$Prediction[i]) {
+    type <- c("worst", "best")
+  } else {
+    type <- c("best", "worst")
+  }
+  conf_all_final <- rbind(conf_all_final, data.frame(
+    "Reference" = conf_all$Reference[i],
+    "Prediction" = conf_all$Prediction[i],
+    "Type" = type,
+    "Data_Set" = c(conf_all$min_name[i], conf_all$max_name[i]),
+    "Freq" = c(conf_all$min_freq[i], conf_all$max_freq[i]),
+    "Prob" = c(conf_all$min_prob[i], conf_all$max_prob[i])
+  ))
+}
+conf_all <- conf_all_final
+
+# relevel data
+conf_all$Prediction <- factor(conf_all$Prediction, levels = rev(levels(conf_all$Prediction)))
+
+# class to number
+conf_all$x <- as.numeric(factor(conf_all$Reference))
+conf_all$y <- as.numeric(factor(conf_all$Prediction))
+conf_all$id <- 1:nrow(conf_all)
+
+# duplicate every row 3 times
+conf_all <- conf_all[rep(conf_all$id, each = 3), ]
+
+# get coordinates for lower polygon (worst values)
+poly_x_worst <- conf_all$x + c(-0.5, 0.5, 0.5)
+poly_y_worst <- conf_all$y + c(-0.5, -0.5, 0.5)
+
+# get coordinates for upper polygon (best values)
+poly_x_best <- conf_all$x + c(-0.5, -0.5, 0.5)
+poly_y_best <- conf_all$y + c(-0.5, 0.5, 0.5)
+
+# set polygon coordinates
+conf_all$poly_x <- NA
+conf_all$poly_y <- NA
+conf_all$poly_x[conf_all$Type == "worst"] <- poly_x_worst[conf_all$Type == "worst"]
+conf_all$poly_x[conf_all$Type == "best"] <- poly_x_best[conf_all$Type == "best"]
+conf_all$poly_y[conf_all$Type == "worst"] <- poly_y_worst[conf_all$Type == "worst"]
+conf_all$poly_y[conf_all$Type == "best"] <- poly_y_best[conf_all$Type == "best"]
+
+# make & save plot
+cairo_pdf(
+  file = paste0(path_plots, "/conf_matrix_combo.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+ggplot(conf_all) +
+  geom_tile(aes(x = Reference, y = Prediction), fill = "white") +
+  geom_polygon(aes(x = poly_x, y = poly_y, group = id, fill = Data_Set), size = 1, color = "white") +
+  geom_tile(aes(x = Reference, y = Prediction), alpha = 0, col = "white", size = 1.5) +
+  geom_text(data = conf_all[conf_all$Type == "best", ], aes(
+    x = x - 0.25, y = y + 0.15, label = Freq
+  ), size = 4, check_overlap = TRUE) +
+  geom_text(data = conf_all[conf_all$Type == "worst", ], aes(
+    x = x + 0.25, y = y - 0.15, label = Freq
+  ), size = 4, check_overlap = TRUE) +
+  geom_text(data = conf_all[conf_all$Type == "best", ], aes(
+    x = x - 0.25, y = y + 0.2, label = paste0(Type, "\n\n")
+  ), size = 3, check_overlap = TRUE) +
+  geom_text(data = conf_all[conf_all$Type == "worst", ], aes(
+    x = x + 0.25, y = y - 0.2, label = paste0("\n\n", Type)
+  ), size = 3, check_overlap = TRUE) +
+  scale_fill_manual(values = color_scale_type, labels = c(names, "Multiple"), name = "Input Data\nCombination\n") +
+  scale_x_discrete(labels = c(
+    paste0("Blueberry\n(n = ", total_ref$blueberry, ")"),
+    paste0("Deadwood\n(n = ", total_ref$dead_wood, ")"),
+    paste0("Forest Floor\n(n = ", total_ref$forest_floor, ")"),
+    paste0("Moss\n(n = ", total_ref$moss, ")"),
+    paste0("Spruce\n(n = ", total_ref$spruce, ")")
+  )) +
+  scale_y_discrete(labels = rev(c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce"))) +
+  theme_light() +
+  theme(
+    text = element_text(size = 14, family = "Calibri"),
+    legend.title = element_text(family = "Calibri", size = 16),
+    legend.key.width = unit(0.75, "cm"),
+    legend.key.height = unit(0.75, "cm"),
+    legend.text = element_text(family = "Calibri", size = 14)
+  ) +
+  ylab("Prediction\n") +
+  xlab(paste0("\nReference (n = ", total_ref$all, ")")) +
+  coord_equal()
+dev.off()
 
 ################################################################################
 # ACCURACY INSTABILITY
