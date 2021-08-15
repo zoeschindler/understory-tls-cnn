@@ -6,6 +6,8 @@
 
 # load packages
 library(ggplot2)
+library(tfruns)
+library(jsonlite)
 library(ggpubr)
 library(ggcorrplot)
 library(ggdendro)
@@ -22,6 +24,7 @@ basedir <- "H:/Daten/Studium/2_Master/4_Semester"
 path_vegetation <- paste0(basedir, "/4_Daten/vegetation/Export_ODK_clean_checked_filtered_no_overlap.kml") # input
 path_rasters    <- paste0(basedir, "/4_Daten/rasters_2cm") # input
 path_models     <- paste0(basedir, "/4_Daten/02_testing/models_2cm") # input
+path_tfruns     <- paste0(basedir, "/4_Daten/02_testing/tfruns_2cm") # input
 path_labels     <- paste0(basedir, "/4_Daten/model_input_2cm_standardized/tls/label_lookup.csv") # input
 path_plots      <- paste0(basedir, "/5_Analyse/Plots") # output
 path_raster_val_before <- paste0(path_rasters, "/raster_samples_scaled.csv") # input
@@ -66,8 +69,7 @@ color_scale_type <- c(
   "tls" = own_colors_named$yellow,
   "tls_geo" = own_colors_named$green,
   "tls_rgb" = own_colors_named$blue,
-  "tls_rgb_geo" = own_colors_named$red,
-  "multiple" = "gray80"
+  "tls_rgb_geo" = own_colors_named$red
 )
 
 ################################################################################
@@ -119,11 +121,11 @@ ggcorrplot(cor_matrix_before,
   theme(
     text = element_text(size = 16, family = "Calibri"),
     plot.title = element_text(hjust = 0.5),
-    legend.text = element_text(family = "Calibri", size = 16),
+    legend.text = element_text(size = 16),
     legend.box.spacing = unit(0.5, "cm"),
     legend.key.width = unit(0.5, "cm"),
     legend.key.height = unit(1.5, "cm"),
-    legend.title = element_text(family = "Calibri", size = 18)
+    legend.title = element_text(size = 18)
   )
 dev.off()
 
@@ -476,6 +478,78 @@ for (class in unique(final_points$Name)) {
 # regression between val_acc and val_loss
 
 ################################################################################
+# CONVERGENCE PLOTS
+################################################################################
+
+metrics_all <- c()
+types <- c("tls", "tls_geo", "tls_rgb", "tls_rgb_geo")
+
+# loop through datasets
+for (type in types) {
+  # loop through folds
+  for (fold in 1:5) {
+    # load history
+    run_path <- paste0(path_tfruns, "/", type, "/fold_", fold)
+    run <- ls_runs(runs_dir = run_path, order = metric_val_accuracy)
+    run_name <- basename(run$run_dir[1])
+    json_path <- paste0(run_path, "/", run_name, "/tfruns.d/metrics.json")
+    history <- fromJSON(json_path)
+    # save validation loss
+    metrics_all <- rbind(metrics_all, data.frame(
+      "type" = type,
+      "fold" = fold,
+      "epoch" = 1:length(history$val_loss),
+      "loss" = history$loss,
+      "accuracy" = history$accuracy,
+      "val_loss" = history$val_loss,
+      "val_accuracy" = history$val_accuracy
+    ))
+  }
+}
+
+# make validation loss plot
+cairo_pdf(
+  file = paste0(path_plots, "/val_loss.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+ggplot(metrics_all) +
+  geom_line(aes(x = epoch, y = val_loss, color = type, group = interaction(type, fold)), alpha = 0.7, stat  = "smooth", size = 1) +
+  scale_color_manual(values = color_scale_type, labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL"), name = "Input Data\nCombination\n") +
+  ylab("Validation Loss\n") +
+  xlab("\nEpoch") +
+  theme_light() +
+  theme(
+    text = element_text(size = 14, family = "Calibri"),
+    legend.title = element_text(size = 16),
+    legend.key.width = unit(0.75, "cm"),
+    legend.key.height = unit(0.75, "cm"),
+    legend.text = element_text(size = 14),
+    panel.grid.minor = element_blank()
+  )
+dev.off()
+
+# make validation accuracy
+cairo_pdf(
+  file = paste0(path_plots, "/val_acc.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+ggplot(metrics_all) +
+  geom_line(aes(x = epoch, y = val_accuracy, color = type, group = interaction(type, fold)), alpha = 0.7, stat  = "smooth", size = 1) +
+  scale_color_manual(values = color_scale_type, labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL"), name = "Input Data\nCombination\n") +
+  ylab("Validation Accuracy\n") +
+  xlab("\nEpoch") +
+  theme_light() +
+  theme(
+    text = element_text(size = 14, family = "Calibri"),
+    legend.title = element_text(size = 16),
+    legend.key.width = unit(0.75, "cm"),
+    legend.key.height = unit(0.75, "cm"),
+    legend.text = element_text(size = 14),
+    panel.grid.minor = element_blank()
+  )
+dev.off()
+
+################################################################################
 # CONFUSION MATRICES - SINGLE
 ################################################################################
 
@@ -726,19 +800,19 @@ ggplot(conf_all) +
   geom_tile(aes(x = Reference, y = Prediction), fill = "white") +
   geom_polygon(aes(x = poly_x, y = poly_y, group = id, fill = Data_Set), size = 1, color = "white") +
   geom_tile(aes(x = Reference, y = Prediction), alpha = 0, col = "white", size = 1.5) +
-  geom_text(data = conf_all[conf_all$Type == "best", ], aes(
-    x = x - 0.25, y = y + 0.15, label = Freq
-  ), size = 4, check_overlap = TRUE) +
-  geom_text(data = conf_all[conf_all$Type == "worst", ], aes(
-    x = x + 0.25, y = y - 0.15, label = Freq
-  ), size = 4, check_overlap = TRUE) +
-  geom_text(data = conf_all[conf_all$Type == "best", ], aes(
-    x = x - 0.25, y = y + 0.2, label = paste0(Type, "\n\n")
-  ), size = 3, check_overlap = TRUE) +
-  geom_text(data = conf_all[conf_all$Type == "worst", ], aes(
-    x = x + 0.25, y = y - 0.2, label = paste0("\n\n", Type)
-  ), size = 3, check_overlap = TRUE) +
-  scale_fill_manual(values = color_scale_type, labels = c(names, "Multiple"), name = "Input Data\nCombination\n") +
+  geom_text(data = conf_all[conf_all$Type == "best", ],
+            aes(x = x - 0.25, y = y + 0.15, label = Freq),
+            size = 4, check_overlap = TRUE) +
+  geom_text(data = conf_all[conf_all$Type == "worst", ],
+            aes(x = x + 0.25, y = y - 0.15, label = Freq),
+            size = 4, check_overlap = TRUE) +
+  geom_text(data = conf_all[conf_all$Type == "best", ],
+            aes(x = x - 0.25, y = y + 0.2, label = paste0(Type, "\n\n")),
+            size = 3, check_overlap = TRUE) +
+  geom_text(data = conf_all[conf_all$Type == "worst", ],
+            aes(x = x + 0.25, y = y - 0.2, label = paste0("\n\n", Type)),
+            size = 3, check_overlap = TRUE) +
+  scale_fill_manual(values = c(color_scale_type,  "multiple" = "gray80") , labels = c(names, "Multiple"), name = "Input Data\nCombination\n") +
   scale_x_discrete(labels = c(
     paste0("Blueberry\n(n = ", total_ref$blueberry, ")"),
     paste0("Deadwood\n(n = ", total_ref$dead_wood, ")"),
@@ -750,10 +824,10 @@ ggplot(conf_all) +
   theme_light() +
   theme(
     text = element_text(size = 14, family = "Calibri"),
-    legend.title = element_text(family = "Calibri", size = 16),
+    legend.title = element_text(size = 16),
     legend.key.width = unit(0.75, "cm"),
     legend.key.height = unit(0.75, "cm"),
-    legend.text = element_text(family = "Calibri", size = 14)
+    legend.text = element_text(size = 14)
   ) +
   ylab("Prediction\n") +
   xlab(paste0("\nReference (n = ", total_ref$all, ")")) +
@@ -838,10 +912,10 @@ ggplot(
   theme_light() +
   theme(
     text = element_text(size = 14, family = "Calibri"),
-    legend.title = element_text(family = "Calibri", size = 16),
+    legend.title = element_text(size = 16),
     legend.key.width = unit(0.75, "cm"),
     legend.key.height = unit(1, "cm"),
-    legend.text = element_text(family = "Calibri", size = 14)
+    legend.text = element_text(size = 14)
   ) +
   scale_x_discrete(labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")) +
   xlab("") +
@@ -882,10 +956,10 @@ measure_boxplot <- function(data, measure, name, legend = "none", notch = FALSE)
     theme_light() +
     theme(
       text = element_text(size = 14, family = "Calibri"),
-      legend.title = element_text(family = "Calibri", size = 16),
+      legend.title = element_text(size = 16),
       legend.key.width = unit(0.75, "cm"),
       legend.key.height = unit(1, "cm"),
-      legend.text = element_text(family = "Calibri", size = 14),
+      legend.text = element_text(size = 14),
       legend.position = legend,
     ) +
     scale_x_discrete(labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")) +
