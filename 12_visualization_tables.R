@@ -363,19 +363,6 @@ ggarrange(plot_red, plot_green, plot_blue,
 )
 dev.off()
 
-# all rgb values (R, G, B), notch
-cairo_pdf(
-  file = paste0(path_plots, "/rgb_raster_stats_notch.pdf"),
-  family = "Calibri", width = 8.27, height = 2.93
-)
-plot_red <- raster_stat_plot(raster_vals, "Red", "R", notch = TRUE)
-plot_green <- raster_stat_plot(raster_vals, "Green", "G", notch = TRUE)
-plot_blue <- raster_stat_plot(raster_vals, "Blue", "B", notch = TRUE)
-ggarrange(plot_red, plot_green, plot_blue,
-  ncol = 3, nrow = 1, legend.grob = plot_legend_line, legend = "bottom"
-)
-dev.off()
-
 # all geometry values (anisotropy_max, curvature_max, linearity_max, linearity_sd, planarity_mean, planarity_sd)
 cairo_pdf(
   file = paste0(path_plots, "/geo_raster_stats.pdf"),
@@ -387,23 +374,6 @@ plot_linea_max <- raster_stat_plot(raster_vals, "Linearity, max", "linearity_max
 plot_linea_sd <- raster_stat_plot(raster_vals, "Linearity, sd", "linearity_sd")
 plot_plan_mean <- raster_stat_plot(raster_vals, "Planarity, mean", "planarity_mean")
 plot_plan_sd <- raster_stat_plot(raster_vals, "Planarity, sd", "planarity_sd")
-ggarrange(plot_aniso_max, plot_curv_max, plot_linea_max,
-  plot_linea_sd, plot_plan_mean, plot_plan_sd,
-  ncol = 3, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
-)
-dev.off()
-
-# all geometry values (anisotropy_max, curvature_max, linearity_max, linearity_sd, planarity_mean, planarity_sd), notch
-cairo_pdf(
-  file = paste0(path_plots, "/geo_raster_stats_notch.pdf"),
-  family = "Calibri", width = 8.27, height = 5.83
-)
-plot_aniso_max <- raster_stat_plot(raster_vals, "Anisotropy, max", "anisotropy_max", notch = TRUE)
-plot_curv_max <- raster_stat_plot(raster_vals, "Curvature, max", "curvature_max", notch = TRUE)
-plot_linea_max <- raster_stat_plot(raster_vals, "Linearity, max", "linearity_max", notch = TRUE)
-plot_linea_sd <- raster_stat_plot(raster_vals, "Linearity, sd", "linearity_sd", notch = TRUE)
-plot_plan_mean <- raster_stat_plot(raster_vals, "Planarity, mean", "planarity_mean", notch = TRUE)
-plot_plan_sd <- raster_stat_plot(raster_vals, "Planarity, sd", "planarity_sd", notch = TRUE)
 ggarrange(plot_aniso_max, plot_curv_max, plot_linea_max,
   plot_linea_sd, plot_plan_mean, plot_plan_sd,
   ncol = 3, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
@@ -425,20 +395,19 @@ ggarrange(plot_dens, plot_nDSM, plot_ref_mean, plot_ref_sd,
 )
 dev.off()
 
-# all tls values (nDSM, point_density, reflectance_mean, reflectance_sd), notch
-# point density without 0s, because logarithmic scale hates that
-cairo_pdf(
-  file = paste0(path_plots, "/tls_raster_stats_notch.pdf"),
-  family = "Calibri", width = 8.27, height = 5.83
-)
-plot_dens <- raster_stat_plot(raster_vals, "Point Density", "point_density", log = TRUE, notch = TRUE)
-plot_nDSM <- raster_stat_plot(raster_vals, "nDSM Height", "nDSM", notch = TRUE)
-plot_ref_mean <- raster_stat_plot(raster_vals, "Reflectance, mean", "reflectance_mean", notch = TRUE)
-plot_ref_sd <- raster_stat_plot(raster_vals, "Reflectance, sd", "reflectance_sd", notch = TRUE)
-ggarrange(plot_dens, plot_nDSM, plot_ref_mean, plot_ref_sd,
-  ncol = 2, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
-)
-dev.off()
+################################################################################
+
+# check for significant differences within groups
+for (type in unique(raster_vals$type)) {
+  subset <- raster_vals[raster_vals$type == type,]
+  subset$values <- scale(subset$values)
+  print(type)
+  print(ks.test(scale(subset$values), "pnorm"))
+  # all significant -> no normal distribution -> can't use anova or t-test
+  print(kruskal.test(subset$values ~ subset$label))
+  # all significant -> significant differences between all groups
+  print("---------------------------------------------------------------------")
+}
 
 ################################################################################
 # LABELS & AREAS
@@ -478,7 +447,7 @@ for (class in unique(final_points$Name)) {
 # regression between val_acc and val_loss
 
 ################################################################################
-# CONVERGENCE PLOTS
+# CONVERGENCE PLOTS & TRAINING TIME
 ################################################################################
 
 metrics_all <- c()
@@ -488,10 +457,18 @@ types <- c("tls", "tls_geo", "tls_rgb", "tls_rgb_geo")
 for (type in types) {
   # loop through folds
   for (fold in 1:5) {
-    # load history
+    # get run
     run_path <- paste0(path_tfruns, "/", type, "/fold_", fold)
     run <- ls_runs(runs_dir = run_path, order = metric_val_accuracy)[1,]
     run_name <- basename(run$run_dir)
+    # load training time
+    time_path <- paste0(run_path, "/", run_name, "/tfruns.d/properties")
+    start <- names(read.delim(paste0(time_path, "/start")))
+    start <- as.double(substr(start, 2, nchar(start)))
+    end <- names(read.delim(paste0(time_path, "/end")))
+    end <- as.double(substr(end, 2, nchar(end)))
+    train_time <- abs(end - start)
+    # load history
     json_path <- paste0(run_path, "/", run_name, "/tfruns.d/metrics.json")
     history <- fromJSON(json_path)
     # save validation loss
@@ -505,10 +482,23 @@ for (type in types) {
       "val_accuracy" = history$val_accuracy,
       "lr" = ifelse(run$flag_learning_rate == 0, 5e-5, run$flag_learning_rate),
       "bs" = run$flag_batch_size,
-      "ep" = run$flag_epochs
+      "ep" = run$flag_epochs,
+      "time" = train_time
     ))
   }
 }
+
+# get training time
+times <- metrics_all %>%
+  group_by(type, fold) %>%
+  summarise(time = unique(time))
+# in seconds
+summary_time <- summary(times$time)
+print(summary_time)
+# as string min:sec
+summary_time_str <- paste0(summary_time%/%60, ":", round(summary_time%%60))
+names(summary_time_str) <- names(summary_time)                           
+print(summary_time_str)
 
 # make validation loss plot
 cairo_pdf(
