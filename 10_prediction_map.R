@@ -9,6 +9,7 @@ library(raster)
 library(sf)
 library(sp)
 library(keras)
+library(dplyr)
 
 # load functions
 source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/06_prepare_cnn_input.R")
@@ -119,6 +120,19 @@ all_paths <- list.files(path_clips, pattern = "[.]tif", full.names = TRUE)
 all_paths_ids <- as.numeric(gsub("\\D", "", basename(all_paths)))
 within_paths <- all_paths[all_paths_ids %in% within_ID]
 without_paths <- all_paths[all_paths_ids %in% without_ID]
+
+# get share of labels
+test_label_share <- c()
+for (label in c("blueberry", "dead_wood", "forest_floor", "moss", "spruce")) {
+  total <- sum(grepl(pattern = label, basename(within_paths)))
+  fraction <- total/length(within_paths)
+  test_label_share <- rbind(test_label_share, data.frame(
+    "label" = label,
+    "total" = total,
+    "fraction" = round(fraction*100, 2)
+  ))
+}
+write.csv(test_label_share, paste0(path_out, "/label_share_test_images.csv"), row.names = FALSE)
 
 # save as rds
 file_list_to_rds(within_paths, path_out, "input_testing")
@@ -265,6 +279,32 @@ for (i in 1:nrow(label_lookup)) {
   preds_label[preds_label == label_lookup$new[i]] <- label_lookup$old[[i]]
 }
 
+# get share of labels
+preds_label_share <- c()
+for (label in c("blueberry", "dead_wood", "forest_floor", "moss", "spruce")) {
+  total <- sum(preds_label == label)
+  fraction <- total/length(preds_label)
+  preds_label_share <- rbind(preds_label_share, data.frame(
+    "label" = label,
+    "total" = total,
+    "fraction" = round(fraction*100, 2)
+  ))
+}
+write.csv(preds_label_share, paste0(path_out, "/label_share_predictions.csv"), row.names = FALSE)
+
+# get mean confidence in prediction per label
+# (where label was chosen as final label)
+preds_combo <- data.frame(
+  "prediction" = preds_label,
+  "chance" = preds_chance)
+preds_combo_summary <- preds_combo %>%
+  group_by(prediction) %>%
+  summarise(mean_chance = mean(chance))
+preds_combo_summary <- rbind(preds_combo_summary, data.frame(
+  "prediction" = "total",
+  "mean_chance" = mean(preds_chance)))
+write.csv(preds_combo_summary, paste0(path_out, "/label_mean_confidence.csv"), row.names = FALSE)
+
 # save as shapefile
 polys <- lapply(tiles, function(x) as(extent(x), "SpatialPolygons"))
 polys <- do.call(bind, polys)
@@ -375,5 +415,7 @@ map_confidence <- ggplot() +
         legend.position = "none")
 ggarrange(map_confidence, legend.grob = map_legend_confidence, legend = "bottom") # without ggarrange, legend not centered
 dev.off()
+
+# CRS: EPSG 25832 (ETRS89 / UTM zone 32N)
 
 ################################################################################

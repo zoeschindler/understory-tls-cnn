@@ -437,6 +437,24 @@ for (class in unique(final_points$Name)) {
 }
 
 ################################################################################
+# LABELS & FOLDS
+################################################################################
+
+# load labels
+label_df <- read.csv(path_labels)
+
+# get & print the class distribution
+for (i in 1:5) {
+  tab <- readRDS(paste0(dirname(path_labels), "/images_fold_", i, ".rds"))
+  for (i in 1:nrow(label_df)) {
+    tab$label[tab$label == label_df$new[i]] <- label_df$old[[i]]
+  }
+  print(paste0("fold: ", i))
+  print(summary(as.factor(tab$label)))
+  print("---------------------------------------------------------------------")
+}
+
+################################################################################
 # HYPERPARAMETERS & ACCURACY & LOSS
 ################################################################################
 
@@ -506,9 +524,18 @@ cairo_pdf(
   family = "Calibri", width = 8.27, height = 5.83
 )
 ggplot(metrics_all) +
-  geom_line(aes(x = epoch, y = val_loss, color = type, group = interaction(type, fold), linetype = as.character(lr)), alpha = 0.7, stat  = "smooth", size = 1) +
-  scale_color_manual(values = color_scale_type, labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL"), name = "Input Data\nCombination\n") +
-  scale_linetype_manual(name = "\nLearning Rate\n", values = c("solid", "longdash"), guide = guide_legend(override.aes = list(linetype = c("solid", "dashed"), size = 0.5))) +
+  geom_line(
+    aes(x = epoch, y = val_loss, color = type, group = interaction(type, fold),
+        linetype = as.character(lr)), alpha = 0.8, stat  = "smooth", size = 1
+  ) +
+  scale_color_manual(
+    values = color_scale_type, labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL"),
+    name = "Input Data\nCombination\n"
+  ) +
+  scale_linetype_manual(
+    name = "\nLearning Rate\n", values = c("solid", "longdash"),
+    guide = guide_legend(override.aes = list(linetype = c("solid", "dashed"), size = 0.5))
+  ) +
   ylab("Validation Loss\n") +
   xlab("\nEpoch") +
   theme_light() +
@@ -528,9 +555,18 @@ cairo_pdf(
   family = "Calibri", width = 8.27, height = 5.83
 )
 ggplot(metrics_all) +
-  geom_line(aes(x = epoch, y = val_accuracy, color = type, group = interaction(type, fold), linetype = as.character(lr)), alpha = 0.7, stat  = "smooth", size = 1) +
-  scale_color_manual(values = color_scale_type, labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL"), name = "Input Data\nCombination\n") +
-  scale_linetype_manual(name = "\nLearning Rate\n", values = c("solid", "longdash"), guide = guide_legend(override.aes = list(linetype = c("solid", "dashed"), size = 0.5))) +
+  geom_line(
+    aes(x = epoch, y = val_accuracy, color = type, group = interaction(type, fold),
+        linetype = as.character(lr)), alpha = 0.8, stat  = "smooth", size = 1
+  ) +
+  scale_color_manual(
+    values = color_scale_type, labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL"),
+    name = "Input Data\nCombination\n"
+  ) +
+  scale_linetype_manual(
+    name = "\nLearning Rate\n", values = c("solid", "longdash"),
+    guide = guide_legend(override.aes = list(linetype = c("solid", "dashed"), size = 0.5))
+  ) +
   ylab("Validation Accuracy\n") +
   xlab("\nEpoch") +
   theme_light() +
