@@ -181,13 +181,41 @@ if (hyper["flag_batch_size"] == 32) {
   )
 }
 
-# test accuracy just for fun
-results <- model %>% evaluate_generator(balanced$data_test, steps = balanced$length_test)
-write.csv(data.frame("loss" = results["loss"], "accuracy" = results["accuracy"]),
-          paste0(path_out, "/model_evaluation.csv"), row.names = FALSE)
-
 # save model
 model %>% save_model_hdf5(paste0(path_out, "/model.h5"))
+
+################################################################################
+
+# load model
+model <- load_model_hdf5(paste0(path_out, "/model.h5"))
+
+# load data
+test_data <- readRDS(paste0(path_out, "/", "input_testing.rds"))
+test_images <- test_data$img
+test_images[is.na(test_images)] <- 0
+test_labels <- test_data$label
+test_labels <- to_categorical(test_labels)[,2:6]
+
+# get accuracy
+results <- model %>% evaluate(test_images, test_labels)
+overall_accuracy <- results["accuracy"]
+
+# get mean f1
+preds <- model %>% predict(test_images)
+preds_int <- apply(preds, 1, which.max)
+test_labels_int <- apply(test_labels, 1, which.max)
+preds_fac <- factor(preds_int, levels = c(1,2,3,4,5))
+test_labels_fac <- factor(test_labels_int, levels = c(1,2,3,4,5))
+conf <- confusionMatrix(preds_fac, test_labels_fac, mode = "everything")
+f1_vals <- conf$byClass[,"F1"]
+f1_vals[is.na(f1_vals)] <- 0
+mean_f1 <- mean(f1_vals)
+
+# save in file
+write.csv(data.frame(
+  "accuracy" = round(overall_accuracy*100, 2),
+  "mean_f1" = round(mean_f1, 4)),
+  paste0(path_out, "/model_acc_f1.csv"), row.names = FALSE)
 
 ################################################################################
 # TILE RASTER
@@ -224,7 +252,7 @@ for (i in 1:length(raster_paths)) {
   type <- types[i]
   path <- raster_paths[i]
   raster_list[[i]] <- stack(path)
-
+  
   # clip to area
   raster_list[[i]] <- mask(raster_list[[i]], area)
   
@@ -341,21 +369,21 @@ df <- df[!is.na(df$prediction) & !is.na(df$chance), ]
 # make legend (predictions)
 map_legend_label <- get_legend(
   ggplot() +
-  geom_polygon(data = df, aes(x = long, y = lat, group = group, fill = prediction), color = NA) +
-  scale_fill_manual(
-    values = color_scale_classes,
-    name = "Predicted Class",
-    labels = c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce")
-  ) +
-  theme(
-    text = element_text(family = "Calibri", size = 14),
-    legend.text = element_text(family = "Calibri", size = 14),
-    legend.box.spacing = unit(0.5, "cm"),
-    legend.key.width = unit(0.5, "cm"),
-    legend.key.height = unit(0.5, "cm"),
-    legend.title = element_text(family = "Calibri", size = 16),
-    legend.position = "bottom"
-  )
+    geom_polygon(data = df, aes(x = long, y = lat, group = group, fill = prediction), color = NA) +
+    scale_fill_manual(
+      values = color_scale_classes,
+      name = "Predicted Class",
+      labels = c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce")
+    ) +
+    theme(
+      text = element_text(family = "Calibri", size = 14),
+      legend.text = element_text(family = "Calibri", size = 14),
+      legend.box.spacing = unit(0.5, "cm"),
+      legend.key.width = unit(0.5, "cm"),
+      legend.key.height = unit(0.5, "cm"),
+      legend.title = element_text(family = "Calibri", size = 16),
+      legend.position = "bottom"
+    )
 )
 
 # make map (predictions)
