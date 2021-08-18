@@ -185,6 +185,8 @@ if (hyper["flag_batch_size"] == 32) {
 model %>% save_model_hdf5(paste0(path_out, "/model.h5"))
 
 ################################################################################
+# GET MODEL PERFORMANCE
+################################################################################
 
 # load model
 model <- load_model_hdf5(paste0(path_out, "/model.h5"))
