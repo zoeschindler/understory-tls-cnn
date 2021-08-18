@@ -14,7 +14,7 @@ loadfonts(device = "pdf", quiet = TRUE)
 # set paths
 basedir <- "H:/Daten/Studium/2_Master/4_Semester"
 path_models <- paste0(basedir, "/4_Daten/02_testing/models_2cm")
-path_out    <- paste0(basedir, "/cifar10_test")
+path_out    <- paste0(basedir, "/4_Daten/cifar10_test")
 
 # own colors
 own_colors_named <- list(
