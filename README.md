@@ -12,8 +12,9 @@
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/08_experiment.R">08_experiment.R</a>: for running `tfruns` & hyperparameter optimization ✓<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/09_filter_plot.R">09_filter_plot.R</a>: visualization of the understory filtering ✓<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/10_prediction_map.R">10_prediction_map.R</a>: visualize prediction results on one area as raster (in progress)<br>
-* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/11_prediction_points.R">11_prediction_map.R</a>: add prediction results to point cloud & visualize point cloud (in progress)<br>
-* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/12_visualization_tables.R ">12_visualization_tables.R</a>: create result visualizations (in progress)<br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/11_prediction_points.R">11_prediction_points.R</a>: add prediction results to point cloud & visualize point cloud (in progress)<br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/12_visualization_tables.R">12_visualization_tables.R</a>: create result visualizations (in progress)<br>
+* <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/13_test_architecture_cifar10.R">13_test_architecture_cifar10.R</a>: test architecture using CIFAR10 dataset, check for accuracy fluctuations ✓<br>
 
 ## Workflow: Data Preparation
 
