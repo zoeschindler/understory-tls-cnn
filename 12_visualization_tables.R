@@ -24,6 +24,7 @@ basedir <- "H:/Daten/Studium/2_Master/4_Semester"
 path_vegetation <- paste0(basedir, "/4_Daten/vegetation/Export_ODK_clean_checked_filtered_no_overlap.kml") # input
 path_rasters    <- paste0(basedir, "/4_Daten/rasters_2cm") # input
 path_models     <- paste0(basedir, "/4_Daten/02_testing/models_2cm") # input
+path_pre_models <- paste0(basedir, "/4_Daten/01_hyperparameter/models_2cm") # input
 path_tfruns     <- paste0(basedir, "/4_Daten/02_testing/tfruns_2cm") # input
 path_labels     <- paste0(basedir, "/4_Daten/model_input_2cm_standardized/tls/label_lookup.csv") # input
 path_plots      <- paste0(basedir, "/5_Analyse/Plots") # output
@@ -70,6 +71,15 @@ color_scale_type <- c(
   "tls_geo" = own_colors_named$green,
   "tls_rgb" = own_colors_named$blue,
   "tls_rgb_geo" = own_colors_named$red
+)
+
+# grey color scale for classes (for appendix?)
+color_scale_grey <- c(
+  "grey90",
+  "gray80",
+  "gray70",
+  "gray60",
+  "gray50"
 )
 
 ################################################################################
@@ -128,7 +138,6 @@ ggcorrplot(cor_matrix_before,
     legend.title = element_text(size = 18)
   )
 dev.off()
-
 
 # corr plot after
 cairo_pdf(
@@ -399,7 +408,7 @@ dev.off()
 
 # check for significant differences within groups
 for (type in unique(raster_vals$type)) {
-  subset <- raster_vals[raster_vals$type == type,]
+  subset <- raster_vals[raster_vals$type == type, ]
   subset$values <- scale(subset$values)
   print(type)
   print(ks.test(scale(subset$values), "pnorm"))
@@ -455,16 +464,6 @@ for (i in 1:5) {
 }
 
 ################################################################################
-# HYPERPARAMETERS & ACCURACY & LOSS
-################################################################################
-
-# correlation plot - hyperparameters & accuracy & loss
-
-# barplots (with CI) / boxplots - hyperparameters & accuracy & loss
-
-# regression between val_acc and val_loss
-
-################################################################################
 # CONVERGENCE PLOTS & TRAINING TIME
 ################################################################################
 
@@ -477,7 +476,7 @@ for (type in types) {
   for (fold in 1:5) {
     # get run
     run_path <- paste0(path_tfruns, "/", type, "/fold_", fold)
-    run <- ls_runs(runs_dir = run_path, order = metric_val_accuracy)[1,]
+    run <- ls_runs(runs_dir = run_path, order = metric_val_accuracy)[1, ]
     run_name <- basename(run$run_dir)
     # load training time
     time_path <- paste0(run_path, "/", run_name, "/tfruns.d/properties")
@@ -514,8 +513,8 @@ times <- metrics_all %>%
 summary_time <- summary(times$time)
 print(summary_time)
 # as string min:sec
-summary_time_str <- paste0(summary_time%/%60, ":", round(summary_time%%60))
-names(summary_time_str) <- names(summary_time)                           
+summary_time_str <- paste0(summary_time %/% 60, ":", round(summary_time %% 60))
+names(summary_time_str) <- names(summary_time)
 print(summary_time_str)
 
 # make validation loss plot
@@ -525,8 +524,10 @@ cairo_pdf(
 )
 ggplot(metrics_all) +
   geom_line(
-    aes(x = epoch, y = val_loss, color = type, group = interaction(type, fold),
-        linetype = as.character(lr)), alpha = 0.8, stat  = "smooth", size = 1
+    aes(
+      x = epoch, y = val_loss, color = type, group = interaction(type, fold), linetype = as.character(lr)
+    ),
+    alpha = 0.8, stat = "smooth", size = 1
   ) +
   scale_color_manual(
     values = color_scale_type, labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL"),
@@ -556,8 +557,10 @@ cairo_pdf(
 )
 ggplot(metrics_all) +
   geom_line(
-    aes(x = epoch, y = val_accuracy, color = type, group = interaction(type, fold),
-        linetype = as.character(lr)), alpha = 0.8, stat  = "smooth", size = 1
+    aes(
+      x = epoch, y = val_accuracy, color = type, group = interaction(type, fold), linetype = as.character(lr)
+    ),
+    alpha = 0.8, stat = "smooth", size = 1
   ) +
   scale_color_manual(
     values = color_scale_type, labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL"),
@@ -831,19 +834,27 @@ ggplot(conf_all) +
   geom_tile(aes(x = Reference, y = Prediction), fill = "white") +
   geom_polygon(aes(x = poly_x, y = poly_y, group = id, fill = Data_Set), size = 1, color = "white") +
   geom_tile(aes(x = Reference, y = Prediction), alpha = 0, col = "white", size = 1.5) +
-  geom_text(data = conf_all[conf_all$Type == "best", ],
-            aes(x = x - 0.25, y = y + 0.15, label = Freq),
-            size = 4, check_overlap = TRUE) +
-  geom_text(data = conf_all[conf_all$Type == "worst", ],
-            aes(x = x + 0.25, y = y - 0.15, label = Freq),
-            size = 4, check_overlap = TRUE) +
-  geom_text(data = conf_all[conf_all$Type == "best", ],
-            aes(x = x - 0.25, y = y + 0.2, label = paste0(Type, "\n\n")),
-            size = 3, check_overlap = TRUE) +
-  geom_text(data = conf_all[conf_all$Type == "worst", ],
-            aes(x = x + 0.25, y = y - 0.2, label = paste0("\n\n", Type)),
-            size = 3, check_overlap = TRUE) +
-  scale_fill_manual(values = c(color_scale_type,  "multiple" = "gray80") , labels = c(names, "Multiple"), name = "Input Data\nCombination\n") +
+  geom_text(
+    data = conf_all[conf_all$Type == "best", ],
+    aes(x = x - 0.25, y = y + 0.15, label = Freq),
+    size = 4, check_overlap = TRUE
+  ) +
+  geom_text(
+    data = conf_all[conf_all$Type == "worst", ],
+    aes(x = x + 0.25, y = y - 0.15, label = Freq),
+    size = 4, check_overlap = TRUE
+  ) +
+  geom_text(
+    data = conf_all[conf_all$Type == "best", ],
+    aes(x = x - 0.25, y = y + 0.2, label = paste0(Type, "\n\n")),
+    size = 3, check_overlap = TRUE
+  ) +
+  geom_text(
+    data = conf_all[conf_all$Type == "worst", ],
+    aes(x = x + 0.25, y = y - 0.2, label = paste0("\n\n", Type)),
+    size = 3, check_overlap = TRUE
+  ) +
+  scale_fill_manual(values = c(color_scale_type, "multiple" = "gray80"), labels = c(names, "Multiple"), name = "Input Data\nCombination\n") +
   scale_x_discrete(labels = c(
     paste0("Blueberry\n(n = ", total_ref$blueberry, ")"),
     paste0("Deadwood\n(n = ", total_ref$dead_wood, ")"),
@@ -866,7 +877,7 @@ ggplot(conf_all) +
 dev.off()
 
 ################################################################################
-# ACCURACY INSTABILITY
+# ACCURACY INSTABILITY - NO HYPERPARAMETERS
 ################################################################################
 
 # set paths & load data
@@ -951,6 +962,112 @@ ggplot(
   scale_x_discrete(labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")) +
   xlab("") +
   ylab("Test Accuracy\n")
+dev.off()
+
+################################################################################
+# ACCURACY INSTABILITY - HYPERPARAMETERS
+################################################################################
+
+make_fluct_hyper_plot <- function(data, name, expression) {
+  plot <- ggplot(data, aes(x = type, y = test_acc, group = interaction(type, fold))) +
+    stat_boxplot(geom = "errorbar", width = 0.3, position = position_dodge(0.9)) +
+    geom_boxplot(
+      aes(fill = as.factor(eval(expression))),
+      outlier.alpha = 1, outlier.size = 1, position = position_dodge(0.9)
+    ) +
+    scale_fill_manual(
+      values = c(own_colors_named$red, own_colors_named$blue, own_colors_named$yellow),
+      name = name
+    ) +
+    theme_light() +
+    theme(
+      text = element_text(size = 14, family = "Calibri"),
+      legend.title = element_text(family = "Calibri", size = 16),
+      legend.key.width = unit(0.75, "cm"),
+      legend.key.height = unit(1, "cm"),
+      legend.text = element_text(family = "Calibri", size = 14),
+      legend.position = "bottom"
+    ) +
+    scale_x_discrete(labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")) +
+    xlab("") +
+    ylab("Test Accuracy\n") +
+    geom_vline(xintercept = c(1.5, 2.5, 3.5), linetype = "dotted", color = "gray30")
+  return(plot)
+}
+
+################################################################################
+
+# get all best hyperparameter combinations
+all_confs <- c()
+all_accs <- c()
+for (type in c("tls", "tls_geo", "tls_rgb", "tls_rgb_geo")) {
+  path_model_type <- paste0(path_models, "/", type)
+  # save hyperparameters
+  best_runs <- read.csv(paste0(path_model_type, "/best_hyperparameters.csv"))
+  best_runs$flag_learning_rate[best_runs$flag_learning_rate == 0] <- 5e-5
+  all_confs <- rbind(all_confs, data.frame(
+    "type" = type,
+    "fold" = best_runs$fold,
+    "lr" = best_runs$flag_learning_rate,
+    "bs" = best_runs$flag_batch_size,
+    "ep" = best_runs$flag_epochs
+  ))
+  # save acccuracies
+  accs <- read.csv(paste0(path_model_type, "/accuracy_fluctuations_best_hyperparameters.csv"))
+  for (i in 1:5) {
+    all_accs <- rbind(all_accs, data.frame(
+      "type" = type,
+      "fold" = i,
+      "test_acc" = accs[, i]
+    ))
+  }
+}
+
+# join data together
+accs_hypers <- all_accs %>%
+  left_join(all_confs, by = c("type", "fold"))
+
+################################################################################
+
+# reshape data
+var_df <- accs_hypers %>%
+  group_by(type, fold) %>%
+  summarise(
+    "sd" = sd(test_acc),
+    "lr" = unique(lr),
+    "bs" = unique(bs),
+    "ep" = unique(ep)
+  )
+
+# make correlation
+round(cor(var_df[, c("sd", "lr", "bs", "ep")], method = "spearman"), 2)
+# only small correlations (0.1 - 0.26) -> no "big" influence
+# -> must be the data, not the hyperparameters!
+
+################################################################################
+
+# make plot - LR
+cairo_pdf(
+  file = paste0(path_plots, "/fluct_acc_lr.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+make_fluct_hyper_plot(accs_hypers, "Learning Rate", expression(lr))
+dev.off()
+
+# make plot - BS
+cairo_pdf(
+  file = paste0(path_plots, "/fluct_acc_bs.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+make_fluct_hyper_plot(accs_hypers, "Batch Size", expression(bs))
+dev.off()
+
+# make plot - EP
+cairo_pdf(
+  file = paste0(path_plots, "/fluct_acc_ep.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83
+)
+make_fluct_hyper_plot(accs_hypers, "Epochs", expression(ep))
 dev.off()
 
 ################################################################################
@@ -1124,15 +1241,37 @@ print(output_results)
 # VISUALIZE FILTERS
 ################################################################################
 
-# # Funktion zum Erzeugen von Filtervisualisierungen
-# generate_pattern <- function(layer_name, filter_index, size = 150) { # size = Zoom
+# # load packages
+# library(grid)
+# library(gridExtra)
+#
+# # turn off eager execution
+# library(tensorflow)
+# tf$compat$v1$disable_eager_execution()
+#
+# # load (random) model
+# model <- load_model_hdf5(paste0(basedir, "/4_Daten/02_testing/models_2cm/tls/all/fold_1_lr_1e-05_ep_200_bs_32_dp_0.5_l2_0.01.h5"))
+# nbands <- 4
+#
+# # tensor to picture
+# deprocess_image <- function(x) {
+#   dms <- dim(x)
+#   x <- x - mean(x)
+#   x <- x / (sd(x) + 1e-5)
+#   x <- x * 0.1
+#   x <- x + 0.5
+#   x <- pmax(0, pmin(x, 1))
+#   array(x, dim = dms)
+# }
+#
+# # filter visualizations
+# generate_pattern <- function(layer_name, filter_index, size = 150, nbands = 4) {
 #   layer_output <- model$get_layer(layer_name)$output
 #   loss <- k_mean(layer_output[,,,filter_index])
 #   grads <- k_gradients(loss, model$input)[[1]]
 #   grads <- grads / (k_sqrt(k_mean(k_square(grads))) + 1e-5)
 #   iterate <- k_function(list(model$input), list(loss, grads))
-#   input_img_data <- array(runif(size * size * 3),
-#                           dim = c(1, size, size, 3)) * 20 + 128
+#   input_img_data <- array(runif(size * size * nbands), dim = c(1, size, size, nbands)) * 20 + 128
 #   step <- 1
 #   for (i in 1:40) {
 #     c(loss_value, grads_value) %<-% iterate(list(input_img_data))
@@ -1141,10 +1280,27 @@ print(output_results)
 #   img <- input_img_data[1,,,]
 #   deprocess_image(img)
 # }
+#
+# # saves images in working directory
+# dir.create("filters")
+# for (layer_name in c("conv2d_15")) {
+#   size <- 100
+#   png(paste0("filters/", layer_name, ".png"), width = 12 * size, height = 4 * size)
+#   grobs <- list()
+#   for (i in 0:7) {
+#     for (j in 0:5) {
+#       pattern <- generate_pattern(layer_name, i + (j*6) + 1, size = size)
+#       grob <- rasterGrob(pattern[,,1:3],
+#                          width = unit(0.9, "npc"),
+#                          height = unit(0.9, "npc"))
+#       grobs[[length(grobs)+1]] <- grob
+#     }
+#   }
+#   grid.arrange(grobs = grobs, ncol = 8)
+#   dev.off()
+# }
 
-################################################################################
-
-# # Muster darstellen
-# grid.raster(generate_pattern("block3_conv1", 1))
+# no clear patterns (on the raster tehre are non visible either, so that's not surprising)
+# hard to visualize anyway, because of the many bands
 
 ################################################################################
