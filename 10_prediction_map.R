@@ -10,9 +10,9 @@ library(sf)
 library(sp)
 library(keras)
 library(dplyr)
+library(caret)
 
 # load functions
-source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/06_prepare_cnn_input.R")
 source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/07_setup_cnn.R")
 
 # set paths
@@ -58,6 +58,24 @@ color_scale_classes <- c(
   own_colors_named$blue, own_colors_named$red, own_colors_named$yellow,
   own_colors_named$bright_green, own_colors_named$green
 )
+
+################################################################################
+# HELPER FUNCTIONS
+################################################################################
+
+rescale_values <- function(values_path) {
+  # creates lookup table for normalization / standardization
+  values <- read.csv(values_path)
+  lookup <- list()
+  types <- unique(values$type)
+  for (type in types) {
+    lookup[[paste0(type, "_min")]] <- min(values$values[values$type == type], na.rm = TRUE)
+    lookup[[paste0(type, "_max")]] <- max(values$values[values$type == type], na.rm = TRUE)
+    lookup[[paste0(type, "_mean")]] <- mean(values$values[values$type == type], na.rm = TRUE)
+    lookup[[paste0(type, "_sd")]] <- sd(values$values[values$type == type], na.rm = TRUE)
+  }
+  return(lookup)
+}
 
 ################################################################################
 # MAKE NEW MODEL
@@ -213,11 +231,17 @@ f1_vals <- conf$byClass[,"F1"]
 f1_vals[is.na(f1_vals)] <- 0
 mean_f1 <- mean(f1_vals)
 
-# save in file
+# save in file - overal acc & mean f1
 write.csv(data.frame(
   "accuracy" = round(overall_accuracy*100, 2),
   "mean_f1" = round(mean_f1, 4)),
   paste0(path_out, "/model_acc_f1.csv"), row.names = FALSE)
+
+# save in file - per class f1
+write.csv(data.frame(
+  "class" = read.csv(path_labels)$old,
+  "class_f1" = round(f1_vals, 4)),
+  paste0(path_out, "/model_class_f1.csv"), row.names = FALSE)
 
 ################################################################################
 # TILE RASTER
