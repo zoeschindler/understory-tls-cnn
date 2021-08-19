@@ -131,19 +131,6 @@ clip_value_csv <- function(plot_path, clip_dir, output_path) {
   return(values)
 }
 
-rescale_values <- function(values_path) {
-  values <- read.csv(values_path)
-  lookup <- list()
-  types <- unique(values$type)
-  for (type in types) {
-    lookup[[paste0(type, "_min")]] <- min(values$values[values$type == type], na.rm = TRUE)
-    lookup[[paste0(type, "_max")]] <- max(values$values[values$type == type], na.rm = TRUE)
-    lookup[[paste0(type, "_mean")]] <- mean(values$values[values$type == type], na.rm = TRUE)
-    lookup[[paste0(type, "_sd")]] <- sd(values$values[values$type == type], na.rm = TRUE)
-  }
-  return(lookup)
-}
-
 ################################################################################
 
 rescale_values <- function(values_path) {
