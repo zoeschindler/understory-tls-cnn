@@ -239,8 +239,8 @@ write.csv(data.frame(
 
 # save in file - per class f1
 write.csv(data.frame(
-  "class" = read.csv(path_labels)$old,
-  "class_f1" = round(f1_vals, 4)),
+  "class" = c(read.csv(path_labels)$old, "mean"),
+  "class_f1" = round(c(f1_vals, mean_f1), 2)),
   paste0(path_out, "/model_class_f1.csv"), row.names = FALSE)
 
 ################################################################################
