@@ -16,6 +16,7 @@ library(dplyr)
 library(scales)
 library(caret)
 library(raster)
+library(Hmisc)
 library(extrafont)
 loadfonts(device = "pdf", quiet = TRUE)
 
@@ -47,22 +48,30 @@ own_colors_named <- list(
   green = "#88d8b0",
   turquoise = "#4abdac",
   pink = "#ff8b94",
-  bright_green = "#cbe885"
+  bright_green = "#cbe885",
+  light_blue = "#47DAFF",
+  light_red = "#ff8985",
+  light_yellow = "#ffd374",
+  light_bright_green = "#d4ed9a",
+  light_green = "#93dcb8"
 )
-
-# # use custom color palette, muted
-# own_colors_named <- list(blue = "#70ABC2",
-#                          turquoise = "#99E0D8",
-#                          yellow = "#F1D07E",
-#                          orange = "#F6A969",
-#                          red = "#E9795D",
-#                          purple = "#B9A4C9",
-#                          green = "#A3CC8E")
 
 # color scale for classes
 color_scale_class <- c(
-  own_colors_named$blue, own_colors_named$red, own_colors_named$yellow,
-  own_colors_named$bright_green, own_colors_named$green
+  own_colors_named$blue,
+  own_colors_named$red,
+  own_colors_named$yellow,
+  own_colors_named$bright_green,
+  own_colors_named$green
+)
+
+# color scale for classes
+color_scale_class_light <- c(
+  own_colors_named$light_blue,
+  own_colors_named$light_red,
+  own_colors_named$light_yellow,
+  own_colors_named$light_bright_green,
+  own_colors_named$light_green
 )
 
 # color scale for input data type
@@ -73,21 +82,23 @@ color_scale_type <- c(
   "tls_rgb_geo" = own_colors_named$red
 )
 
-# grey color scale for classes (for appendix?)
-color_scale_grey <- c(
-  "grey90",
-  "gray80",
-  "gray70",
-  "gray60",
-  "gray50"
+# color scale for input data type
+color_scale_type_light <- c(
+  "tls" = own_colors_named$light_yellow,
+  "tls_geo" = own_colors_named$light_green,
+  "tls_rgb" = own_colors_named$light_blue,
+  "tls_rgb_geo" = own_colors_named$light_red
 )
+
+# grey color scale for classes (for appendix?)
+color_scale_grey <- c("grey90", "gray80", "gray70", "gray60", "gray50")
 
 ################################################################################
 # RAW POINT CLOUDS
 ################################################################################
 
 # maybe better in CC
-# does this even matter
+# does this even matter? it seems so.
 
 ################################################################################
 # CLUSTERS & PCA
@@ -331,7 +342,7 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log 
   return(plot)
 }
 
-raster_legend <- function(data, pos) {
+raster_legend <- function(data, pos, col = 1) {
   # create legend
   label_vector <- c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce")
   plot <- ggplot(data[data$type == "nDSM", ], aes(x = label, y = values)) +
@@ -344,7 +355,8 @@ raster_legend <- function(data, pos) {
       legend.key.width = unit(0.75, "cm"),
       legend.key.height = unit(1, "cm"),
       legend.text = element_text(family = "Calibri", size = 14)
-    )
+    ) +
+    guides(fill = guide_legend(ncol = 2))
   legend <- get_legend(plot)
   return(legend)
 }
@@ -356,6 +368,7 @@ raster_vals <- read.csv(paste0(path_rasters, "/raster_values_labels.csv"))
 raster_vals <- na.omit(raster_vals)
 
 # make legend
+plot_legend_list <- raster_legend(raster_vals, "right", 2)
 plot_legend_block <- raster_legend(raster_vals, "right")
 plot_legend_line <- raster_legend(raster_vals, "bottom")
 
@@ -401,6 +414,37 @@ plot_ref_mean <- raster_stat_plot(raster_vals, "Reflectance, mean", "reflectance
 plot_ref_sd <- raster_stat_plot(raster_vals, "Reflectance, sd", "reflectance_sd")
 ggarrange(plot_dens, plot_nDSM, plot_ref_mean, plot_ref_sd,
   ncol = 2, nrow = 2, legend.grob = plot_legend_line, legend = "bottom"
+)
+dev.off()
+
+# all together
+cairo_pdf(
+  file = paste0(path_plots, "/raster_stats_combo.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83 * 2 + 0.75
+)
+plot_dens <- raster_stat_plot(raster_vals, "Point Density", "point_density", log = TRUE)
+plot_nDSM <- raster_stat_plot(raster_vals, "nDSM Height", "nDSM")
+plot_ref_mean <- raster_stat_plot(raster_vals, "Reflectance, mean", "reflectance_mean")
+plot_ref_sd <- raster_stat_plot(raster_vals, "Reflectance, sd", "reflectance_sd")
+plot_red <- raster_stat_plot(raster_vals, "Red", "R")
+plot_green <- raster_stat_plot(raster_vals, "Green", "G")
+plot_blue <- raster_stat_plot(raster_vals, "Blue", "B")
+plot_aniso_max <- raster_stat_plot(raster_vals, "Anisotropy, max", "anisotropy_max")
+plot_curv_max <- raster_stat_plot(raster_vals, "Curvature, max", "curvature_max")
+plot_linea_max <- raster_stat_plot(raster_vals, "Linearity, max", "linearity_max")
+plot_linea_sd <- raster_stat_plot(raster_vals, "Linearity, sd", "linearity_sd")
+plot_plan_mean <- raster_stat_plot(raster_vals, "Planarity, mean", "planarity_mean")
+plot_plan_sd <- raster_stat_plot(raster_vals, "Planarity, sd", "planarity_sd")
+ggarrange(
+  ggarrange(plot_dens, NULL, plot_legend_list, ncol = 3, widths = c(2, 0.1, 0.9)),
+  ggarrange(
+    plot_nDSM, plot_ref_mean, plot_ref_sd,
+    plot_aniso_max, plot_curv_max, plot_linea_max,
+    plot_linea_sd, plot_plan_mean, plot_plan_sd,
+    plot_red, plot_green, plot_blue,
+    nrow = 4, ncol = 3),
+  
+  ncol = 1, nrow = 2, heights = c(1, 4)
 )
 dev.off()
 
@@ -527,7 +571,7 @@ ggplot(metrics_all) +
     aes(
       x = epoch, y = val_loss, color = type, group = interaction(type, fold), linetype = as.character(lr)
     ),
-    alpha = 0.8, stat = "smooth", size = 1
+    alpha = 1, stat = "smooth", size = 1
   ) +
   scale_color_manual(
     values = color_scale_type, labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL"),
@@ -560,7 +604,7 @@ ggplot(metrics_all) +
     aes(
       x = epoch, y = val_accuracy, color = type, group = interaction(type, fold), linetype = as.character(lr)
     ),
-    alpha = 0.8, stat = "smooth", size = 1
+    alpha = 1, stat = "smooth", size = 1
   ) +
   scale_color_manual(
     values = color_scale_type, labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL"),
@@ -1033,16 +1077,26 @@ accs_hypers <- all_accs %>%
 var_df <- accs_hypers %>%
   group_by(type, fold) %>%
   summarise(
-    "sd" = sd(test_acc),
+    "sd_acc" = sd(test_acc),
     "lr" = unique(lr),
     "bs" = unique(bs),
     "ep" = unique(ep)
   )
-
 # make correlation
-round(cor(var_df[, c("sd", "lr", "bs", "ep")], method = "spearman"), 2)
+corr_m_p <- rcorr(as.matrix(var_df[, c("sd_acc", "lr", "bs", "ep")]), type = "spearman")
+print(round(corr_m_p$r, 2))
+print(round(corr_m_p$P, 2) < 0.05)
 # only small correlations (0.1 - 0.26) -> no "big" influence
 # -> must be the data, not the hyperparameters!
+
+# reshape again
+acc_min_max_diff <- accs_hypers %>%
+  group_by(type, fold) %>%
+  summarise(min = round(min(test_acc),2),
+            max = round(max(test_acc),2),
+            diff = round(abs(max(test_acc) - min(test_acc)),2))
+print(paste0("max diff: ", max(acc_min_max_diff$diff)))
+# biggest diff within one fold: 0.18
 
 ################################################################################
 
@@ -1098,7 +1152,8 @@ measure_boxplot <- function(data, measure, name, legend = "none", notch = FALSE)
   plot <- plot +
     geom_boxplot(aes(fill = type), outlier.alpha = 1, outlier.size = 1.5, width = 0.7) +
     scale_fill_manual(
-      values = color_scale_type, name = "Input Data\nCombination",
+      values = color_scale_type,
+      name = "Input Data\nCombination",
       labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")
     ) +
     theme_light() +
@@ -1109,6 +1164,7 @@ measure_boxplot <- function(data, measure, name, legend = "none", notch = FALSE)
       legend.key.height = unit(1, "cm"),
       legend.text = element_text(size = 14),
       legend.position = legend,
+      panel.grid.minor = element_blank()
     ) +
     scale_x_discrete(labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")) +
     xlab("") +
