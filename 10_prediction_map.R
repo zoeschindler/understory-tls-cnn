@@ -11,6 +11,14 @@ library(sp)
 library(keras)
 library(dplyr)
 library(caret)
+library(ggmap)
+library(rgdal)
+library(ggplot2)
+library(ggpubr)
+library(broom)
+library(dplyr)
+library(extrafont)
+loadfonts(device = "pdf", quiet = TRUE)
 
 # load functions
 source("H:/Daten/Studium/2_Master/4_Semester/5_Analyse/07_setup_cnn.R")
@@ -50,13 +58,30 @@ own_colors_named <- list(
   green = "#88d8b0",
   turquoise = "#4abdac",
   pink = "#ff8b94",
-  bright_green = "#cbe885"
+  bright_green = "#cbe885",
+  light_blue = "#47DAFF",
+  light_red = "#ff8985",
+  light_yellow = "#ffd374",
+  light_bright_green = "#d4ed9a",
+  light_green = "#93dcb8"
 )
 
 # color palette for vegetation classes
-color_scale_classes <- c(
-  own_colors_named$blue, own_colors_named$red, own_colors_named$yellow,
-  own_colors_named$bright_green, own_colors_named$green
+color_scale_class <- c(
+  own_colors_named$blue,
+  own_colors_named$red,
+  own_colors_named$yellow,
+  own_colors_named$bright_green,
+  own_colors_named$green
+)
+
+# color palette for vegetation classes
+color_scale_class_light <- c(
+  own_colors_named$light_blue,
+  own_colors_named$light_red,
+  own_colors_named$light_yellow,
+  own_colors_named$light_bright_green,
+  own_colors_named$light_green
 )
 
 ################################################################################
@@ -374,16 +399,6 @@ shapefile(polys, paste0(path_out, "/tiles.shp"), overwrite = TRUE)
 # MAPS
 ################################################################################
 
-# load packages
-library(ggmap)
-library(rgdal)
-library(ggplot2)
-library(ggpubr)
-library(broom)
-library(dplyr)
-library(extrafont)
-loadfonts(device = "pdf", quiet = TRUE)
-
 # load & prepare data
 shapefile <- readOGR(paste0(path_out, "/tiles.shp"))
 shapefile[is.na(shapefile$prediction), ]
@@ -397,7 +412,7 @@ map_legend_label <- get_legend(
   ggplot() +
     geom_polygon(data = df, aes(x = long, y = lat, group = group, fill = prediction), color = NA) +
     scale_fill_manual(
-      values = color_scale_classes,
+      values = color_scale_class,
       name = "Predicted Class",
       labels = c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce")
     ) +
@@ -417,7 +432,7 @@ cairo_pdf(file = paste0(path_maps, "/prediction_map_label.pdf"), family = "Calib
 map_label <- ggplot() +
   geom_polygon(data = df, aes(x = long, y = lat, group = group, fill = prediction), color = NA) +
   scale_fill_manual(
-    values = color_scale_classes,
+    values = color_scale_class,
     name = "Predicted Class",
     labels = c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce")
   ) +
@@ -429,7 +444,7 @@ map_label <- ggplot() +
   xlab("\nEasting") +
   theme(text = element_text(family = "Calibri", size = 14),
         legend.position = "none")
-ggarrange(map_label, legend.grob = map_legend_label, legend = "bottom") # without ggarrange, legend not centered
+ggarrange(map_label, map_legend_label, nrow = 2, heights = c(8, 1)) # without ggarrange, legend not centered
 dev.off()
 
 ################################################################################
@@ -467,7 +482,7 @@ map_confidence <- ggplot() +
   xlab("\nEasting") +
   theme(text = element_text(family = "Calibri", size = 14),
         legend.position = "none")
-ggarrange(map_confidence, legend.grob = map_legend_confidence, legend = "bottom") # without ggarrange, legend not centered
+ggarrange(map_confidence, map_legend_confidence, nrow = 2, heights = c(8, 1)) # without ggarrange, legend not centered
 dev.off()
 
 # CRS: EPSG 25832 (ETRS89 / UTM zone 32N)
