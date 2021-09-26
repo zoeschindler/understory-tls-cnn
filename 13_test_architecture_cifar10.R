@@ -8,6 +8,7 @@
 library(keras)
 library(ggplot2)
 library(dplyr)
+library(ggpubr)
 library(extrafont)
 loadfonts(device = "pdf", quiet = TRUE)
 
@@ -24,7 +25,12 @@ own_colors_named <- list(
   green = "#88d8b0",
   turquoise = "#4abdac",
   pink = "#ff8b94",
-  bright_green = "#cbe885"
+  bright_green = "#cbe885",
+  light_blue = "#47DAFF",
+  light_red = "#ff8985",
+  light_yellow = "#ffd374",
+  light_bright_green = "#d4ed9a",
+  light_green = "#93dcb8"
 )
 
 ################################################################################
@@ -144,6 +150,15 @@ write.csv(acc_all, paste0(path_out , "/cifar10_acc.csv"), row.names = FALSE)
 # load data
 acc_all <- read.csv(paste0(path_out , "/cifar10_acc.csv"))
 
+# add column
+acc_all$name <- NA
+acc_all$label <- NA
+name_vec <- c("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")
+for (i in 1:length(unique(acc_all$id))) {
+  acc_all$name[acc_all$id == unique(acc_all$id)[i]] <- name_vec[i]
+  acc_all$label[acc_all$id == unique(acc_all$id)[i]] <- paste0(name_vec[i], ") ", "LR ", acc_all$lr, ", EP ", acc_all$ep, ", BS ", acc_all$bs)
+}
+
 # reshape
 acc_min_max_diff <- acc_all %>%
   group_by(id) %>%
@@ -151,32 +166,33 @@ acc_min_max_diff <- acc_all %>%
             max = round(max(accuracy),2),
             diff = round(abs(max(accuracy) - min(accuracy)),2))
 print(paste0("max diff: ", max(acc_min_max_diff$diff)))
+# biggest diff within one fold: 0.04
 
 # plot results
 cairo_pdf(
-  file = paste0(path_out, "/cifar10_acc_lr.pdf"),
-  family = "Calibri", width = 8.27, height = 5.83
+  file = paste0(path_out, "/cifar10_acc_lr_gray.pdf"),
+  family = "Calibri", width = 8.27, height = 5.83 + 2
 )
-ggplot(acc_all, aes(x = as.factor(id), y = accuracy)) +
+plt <- ggplot(acc_all, aes(x = as.factor(id), y = accuracy)) +
   stat_boxplot(geom = "errorbar", width = 0.2, position = position_dodge(0.9)) +
-  geom_boxplot(aes(fill = as.factor(lr)), position = position_dodge(0.9)) +
-  scale_x_discrete(labels = c("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")) +
-  scale_fill_manual(
-    values = c("1e-05" = own_colors_named$blue, "5e-05" = own_colors_named$red),
-    name = "Learning Rate\n"
-  ) +
-  xlab("\nHyperparameter Combination") +
+  geom_boxplot(position = position_dodge(0.9), fill = "white") +
+  geom_boxplot(aes(alpha = as.factor(label)), position = position_dodge(0.9), fill = "gray60") + # "gray50" / own_colors_named$green
+  scale_x_discrete(labels = name_vec) +
+  xlab("\nHyperparameter Combinations") +
   ylab("Test Accuracy\n") +
   theme_light() +
-  ylab("Test Accuracy\n") +
-  xlab("\nUnique Hyperparameter Combinations") +
   theme(
     text = element_text(size = 14, family = "Calibri"),
     legend.title = element_text(size = 16),
     legend.key.width = unit(0.75, "cm"),
     legend.key.height = unit(1, "cm"),
-    legend.text = element_text(size = 14)
+    legend.text = element_text(size = 14),
+    legend.position = "bottom"
+  ) +
+  scale_alpha_discrete(
+    range = c(0.3, 1) , name = "", guide = guide_legend(ncol = 3)
   )
+  ggarrange(plt, common.legend = T, legend = "bottom")
 dev.off()
 
 # higher learning rate: more fluctuations
