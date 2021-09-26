@@ -336,13 +336,15 @@ raster_stat_plot <- function(data, y_label, raster_type, abbreviate = TRUE, log 
       scale_y_continuous(
         trans = log10_trans(),
         breaks = trans_breaks("log10", function(x) 10^x),
-        labels = trans_format("log10", math_format(10^.x))
+        labels = math_format(
+          format = function(x) {number(log10(x), accuracy = 0.1)}
+        )
       )
   }
   return(plot)
 }
 
-raster_legend <- function(data, pos, col = 1) {
+raster_legend <- function(data, pos, col = NA) {
   # create legend
   label_vector <- c("Blueberry", "Deadwood", "Forest Floor", "Moss", "Spruce")
   plot <- ggplot(data[data$type == "nDSM", ], aes(x = label, y = values)) +
@@ -355,8 +357,10 @@ raster_legend <- function(data, pos, col = 1) {
       legend.key.width = unit(0.75, "cm"),
       legend.key.height = unit(1, "cm"),
       legend.text = element_text(family = "Calibri", size = 14)
-    ) +
-    guides(fill = guide_legend(ncol = 2))
+    )
+  if (!is.na(col)) {
+    plot <- plot + guides(fill = guide_legend(ncol = col))
+  }
   legend <- get_legend(plot)
   return(legend)
 }
@@ -420,7 +424,7 @@ dev.off()
 # all together
 cairo_pdf(
   file = paste0(path_plots, "/raster_stats_combo.pdf"),
-  family = "Calibri", width = 8.27, height = 5.83 * 2 + 0.75
+  family = "Calibri", width = 8.27, height = 5.83 * 2 + 0.5
 )
 plot_dens <- raster_stat_plot(raster_vals, "Point Density", "point_density", log = TRUE)
 plot_nDSM <- raster_stat_plot(raster_vals, "nDSM Height", "nDSM")
@@ -1142,13 +1146,11 @@ measure_boxplot <- function(data, measure, name, legend = "none", notch = FALSE)
   data$measure <- data[, measure]
   plot <- ggplot(data, aes(x = type, y = measure)) +
     stat_boxplot(geom = "errorbar", width = 0.25)
-
   if (notch) {
     plot <- plot +
       stat_summary(fun.data = f1, geom = "crossbar", colour = NA, fill = "black", width = 0.85, alpha = 0.25) +
       stat_summary(fun.data = f2, geom = "hline", colour = "gray50", linetype = "dotted", size = 0.5)
   }
-
   plot <- plot +
     geom_boxplot(aes(fill = type), outlier.alpha = 1, outlier.size = 1.5, width = 0.7) +
     scale_fill_manual(
@@ -1176,6 +1178,7 @@ measure_boxplot <- function(data, measure, name, legend = "none", notch = FALSE)
 
 # create empty objects for storage
 measures_all <- c()
+f1_classes <- c()
 conf_m_list <- list()
 preds_list <- list()
 
@@ -1205,18 +1208,24 @@ for (type in c("tls", "tls_rgb", "tls_geo", "tls_rgb_geo")) {
       "kappa" = as.numeric(conf_m$overall["Kappa"]),
       "mean_f1" = mean(conf_m$byClass[, "F1"])
     ))
+    f1_classes <- rbind(f1_classes, data.frame(
+      "type" = type,
+      "fold" = i,
+      "class" = c("blueberry", "dead_wood", "forest_floor", "moss", "spruce"),
+      "f1" = as.numeric(conf_m$byClass[,"F1"])
+    ))
   }
 }
 
 ################################################################################
 
-# make plots
-plot_acc <- measure_boxplot(measures_all, "accuracy", "Test Accuracy", notch = FALSE)
+# make plots for measures
+plot_acc       <- measure_boxplot(measures_all, "accuracy", "Test Accuracy", notch = FALSE)
 plot_acc_notch <- measure_boxplot(measures_all, "accuracy", "Test Accuracy", notch = TRUE)
-plot_f1 <- measure_boxplot(measures_all, "mean_f1", "Mean F1-Score", notch = FALSE)
-plot_f1_notch <- measure_boxplot(measures_all, "mean_f1", "Mean F1-Score", notch = TRUE)
+plot_f1        <- measure_boxplot(measures_all, "mean_f1", "Mean F1-Score", notch = FALSE)
+plot_f1_notch  <- measure_boxplot(measures_all, "mean_f1", "Mean F1-Score", notch = TRUE)
 measures_legend_bottom <- get_legend(measure_boxplot(measures_all, "accuracy", "Test Accuracy", "bottom"))
-measures_legend_right <- get_legend(measure_boxplot(measures_all, "accuracy", "Test Accuracy", "right"))
+measures_legend_right  <- get_legend(measure_boxplot(measures_all, "accuracy", "Test Accuracy", "right"))
 
 # combine plots, f1 and accuracy, notch
 cairo_pdf(
@@ -1290,7 +1299,7 @@ output_results <- data.frame(
   "TLS_RGB" = c(f1_classes[["tls_rgb"]], f1_mean["tls_rgb"], accuracies["tls_rgb"], kappas["tls_rgb"]),
   "ALL" = c(f1_classes[["tls_rgb_geo"]], f1_mean["tls_rgb_geo"], accuracies["tls_rgb_geo"], kappas["tls_rgb_geo"])
 )
-output_results[, 2:5] <- round(output_results[, 2:5], 2)
+output_results[, 2:5] <- round(output_results[, 2:5], 3)
 print(output_results)
 
 ################################################################################
