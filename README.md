@@ -1,4 +1,7 @@
-# Masterarbeit 
+# Points, Pictures, Plants
+## Understory classification using TLS and CNNs<br>based on 2D  point cloud representations
+
+### Code Explanation
 
 * <a href ="https://github.com/zoeschindler/masterarbeit/blob/main/01_preprocessing.R">01_preprocessing.R</a>: filter, clip, merge single scans<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/02_prepare_vegetation.R">02_prepare_vegetation.R</a>: convert vegetation data from json to kml, clean data, download images<br>
@@ -16,14 +19,20 @@
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/12_visualization_tables.R">12_visualization_tables.R</a>: create result visualizations<br>
 * <a href = "https://github.com/zoeschindler/masterarbeit/blob/main/13_test_architecture_cifar10.R">13_test_architecture_cifar10.R</a>: test architecture using CIFAR10 dataset, check for accuracy fluctuations<br>
 
-## Workflow: Data Preparation
+------
+
+### Workflow: Data Preparation
 
 <img align="center" src="https://github.com/zoeschindler/masterarbeit/blob/main/Visualisierung_Workflow_1.png">
 
-## Workflow: Cross-Validation
+------
+
+### Workflow: Cross-Validation
 
 <img align="center" src="https://github.com/zoeschindler/masterarbeit/blob/main/Visualisierung_Workflow_2.png">
 
-## CNN: Architecture
+------
+
+### CNN: Architecture
 
 <img align="center" src="https://github.com/zoeschindler/masterarbeit/blob/main/Visualisierung_Architektur.png">
