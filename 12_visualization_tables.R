@@ -9,8 +9,7 @@ library(ggplot2)
 library(tfruns)
 library(jsonlite)
 library(ggpubr)
-library(ggcorrplot)
-library(ggdendro)
+library(ggcorrplot) 
 library(sf)
 library(dplyr)
 library(scales)
@@ -19,6 +18,7 @@ library(raster)
 library(Hmisc)
 library(extrafont)
 loadfonts(device = "pdf", quiet = TRUE)
+# library(ggdendro)
 
 # set paths
 basedir <- "H:/Daten/Studium/2_Master/4_Semester"
@@ -94,13 +94,6 @@ color_scale_type_light <- c(
 color_scale_grey <- c("grey90", "gray80", "gray70", "gray60", "gray50")
 
 ################################################################################
-# RAW POINT CLOUDS
-################################################################################
-
-# maybe better in CC
-# does this even matter? it seems so.
-
-################################################################################
 # CLUSTERS & PCA
 ################################################################################
 
@@ -172,30 +165,30 @@ ggcorrplot(cor_matrix_after,
   )
 dev.off()
 
-# with help of: https://stackoverflow.com/questions/68557415/dendrogram-with-labels-on-the-right-side
-tree <- hclust(as.dist(1 - cor_matrix_before**2))
-data <- ggdendro::dendro_data(tree)
-cairo_pdf(
-  file = paste0(path_plots, "/corr_cluster.pdf"),
-  family = "Calibri", width = 8.27, height = 5.83
-)
-ggplot() +
-  geom_blank() +
-  geom_segment(data = segment(data), aes_string(x = "x", y = "y", xend = "xend", yend = "yend")) +
-  geom_hline(yintercept = 0.7 * 0.7, col = own_colors_named$red) +
-  scale_x_continuous(breaks = seq_along(data$labels$label), labels = data$labels$label, position = "top") +
-  scale_y_reverse(breaks = seq(0, 1, 0.2), labels = rev(seq(0, 1, 0.2))) +
-  coord_flip() +
-  theme_light() +
-  theme(
-    axis.text.x = element_text(angle = 0, hjust = 1, vjust = 0.5),
-    axis.text.y = element_text(angle = 0, hjust = 1),
-    text = element_text(size = 16, family = "Calibri"),
-    panel.grid.minor = element_blank()
-  ) +
-  ylab(expression(paste("\nSpearman's ", rho**2))) +
-  xlab("")
-dev.off()
+# # with help of: https://stackoverflow.com/questions/68557415/dendrogram-with-labels-on-the-right-side
+# tree <- hclust(as.dist(1 - cor_matrix_before**2))
+# data <- ggdendro::dendro_data(tree)
+# cairo_pdf(
+#   file = paste0(path_plots, "/corr_cluster.pdf"),
+#   family = "Calibri", width = 8.27, height = 5.83
+# )
+# ggplot() +
+#   geom_blank() +
+#   geom_segment(data = segment(data), aes_string(x = "x", y = "y", xend = "xend", yend = "yend")) +
+#   geom_hline(yintercept = 0.7 * 0.7, col = own_colors_named$red) +
+#   scale_x_continuous(breaks = seq_along(data$labels$label), labels = data$labels$label, position = "top") +
+#   scale_y_reverse(breaks = seq(0, 1, 0.2), labels = rev(seq(0, 1, 0.2))) +
+#   coord_flip() +
+#   theme_light() +
+#   theme(
+#     axis.text.x = element_text(angle = 0, hjust = 1, vjust = 0.5),
+#     axis.text.y = element_text(angle = 0, hjust = 1),
+#     text = element_text(size = 16, family = "Calibri"),
+#     panel.grid.minor = element_blank()
+#   ) +
+#   ylab(expression(paste("\nSpearman's ", rho**2))) +
+#   xlab("")
+# dev.off()
 
 ################################################################################
 # RASTER STATISTICS & LABELS
@@ -1365,7 +1358,7 @@ print(output_results)
 #   dev.off()
 # }
 
-# no clear patterns (on the raster tehre are non visible either, so that's not surprising)
-# hard to visualize anyway, because of the many bands
+# no clear patterns (on the raster there are none visible either, so that's not surprising)
+# hard to visualize because of the many bands
 
 ################################################################################
