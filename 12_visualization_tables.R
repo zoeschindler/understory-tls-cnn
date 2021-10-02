@@ -951,7 +951,7 @@ ggplot(
   geom_boxplot(outlier.alpha = 0, outlier.size = 0, fill = "white", alpha = 1, position = position_dodge(0.9)) +
   geom_boxplot(outlier.alpha = 1, outlier.size = 1, position = position_dodge(0.9)) +
   scale_fill_manual(
-    values = color_scale_class,
+    values = color_scale_type,
     name = "Input Data\nCombination",
     labels = c("TLS", "TLS & GEO", "TLS & RGB", "ALL")
   ) +
